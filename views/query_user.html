@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <meta charset="UTF-8">
+   <title>用户管理</title>
+   <link rel="stylesheet" href="../static/css/element.css">
+   <style>
+      .el-input  {
+          width: 480px;
+      }
+      .el-input-number {
+          width: 480px;
+      }
+      .demo-ruleForm{
+          padding-top:5%;
+          padding-left:10%;
+          width: 60%;
+      }
+
+  </style>
+</head>
+<body>
+  <div id="app">
+      <el-form  label-width="100px" class="demo-ruleForm">
+          <el-form-item label="姓名" prop="name" >
+              <el-input  v-model="name" @input="changeValue"></el-input>
+              <el-button type="primary" @click="queryUser">&nbsp;查&nbsp;询</el-button>
+              <el-button type="primary" @click="openAdd">&nbsp;新&nbsp;增</el-button>
+          </el-form-item>
+
+          <el-table
+                  :data="tableData.slice((currentPage-1)*pageSize,currentPage*pageSize)"
+                  style="width: 100%"
+                  :default-sort="{prop: 'Age', order: 'descending'}"
+              >
+              <el-table-column
+                      prop="Id"
+                      label="工号">
+              </el-table-column>
+              <el-table-column
+                      prop="Name"
+                      label="姓名"
+                      width="80">
+              </el-table-column>
+              <el-table-column
+                      prop="Gender"
+                      label="性别"
+                      width="180">
+              </el-table-column>
+              <el-table-column
+                      prop="Age"
+                      sortable
+                      label="年龄">
+              </el-table-column>
+              <el-table-column
+                      prop="Birthday"
+                      label="生日"
+                      width="180">
+              </el-table-column>
+              <el-table-column
+                      fixed="right"
+                      label="操作"
+                      width="150">
+                  <template slot-scope="scope">
+                      <el-button
+                              size="mini"
+                              @click="openEdit(scope.$index, scope.row)">编辑</el-button>
+                      <el-button
+                              size="mini"
+                              type="danger"
+                              @click="delUser(scope.$index, scope.row)">删除</el-button>
+
+                  </template>
+              </el-table-column>
+          </el-table>
+
+          <div class="block" style="margin-top:15px;">
+              <el-pagination
+                      align='center'
+                      @size-change="handleSizeChange"
+                      @current-change="handleCurrentChange"
+                      :current-page="currentPage"
+                      :page-sizes="[1,5,10,20]"
+                      :page-size="pageSize" layout="total, sizes, prev, pager, next, jumper"
+                      :total="tableData.length">
+              </el-pagination>
+          </div>
+
+          <el-dialog :title="dialogFormTitle" :visible.sync="dialogFormVisible">
+
+              <el-form :model="ruleForm" :rules="rules" ref="ruleForm" label-width="100px" class="demo-ruleForm">
+                  <el-form-item label="工号" prop="id" required  v-show="itemShow">
+                      <el-input v-model="ruleForm.id" :readonly="itemReadOnly"></el-input>
+                  </el-form-item>
+
+                  <el-form-item label="姓名" prop="name" required>
+                      <el-input v-model="ruleForm.name"></el-input>
+                  </el-form-item>
+
+                  <el-form-item label="性别" prop="gender" required>
+                      <el-select v-model="ruleForm.value" placeholder="选择性别">
+                          <el-option
+                                v-for="item in ruleForm.gender"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value">
+                          </el-option>
+                      </el-select>
+                  </el-form-item>
+
+                  <el-form-item label="生日" required>
+                      <el-col :span="35">
+                          <el-form-item prop="birthday">
+                              <el-date-picker
+                                      type="date"
+                                      value-format="yyyy-MM-dd"
+                                      placeholder="选择生日"
+                                      v-model="ruleForm.birthday"
+                                      style="width: 480px;">
+                              </el-date-picker>
+                          </el-form-item>
+                      </el-col>
+                  </el-form-item>
+
+                  <el-form-item label="年龄" required>
+                      <el-col :span="15">
+                          <el-form-item prop="age">
+                              <el-input-number  v-model="ruleForm.age" :min="18" :max="60" label="年龄"></el-input-number>
+                          </el-form-item>
+                      </el-col>
+                  </el-form-item>
+
+              </el-form>
+
+              <div slot="footer" class="dialog-footer">
+                  <el-button @click="dialogFormVisible = false">取 消</el-button>
+                  <el-button type="primary" @click="saveUser">确 定</el-button>
+              </div>
+          </el-dialog>
+
+      </el-form>
+
+  </div>
+</body>
+
+<script  src="../static/js/vue.js"></script>
+<script  src="../static/js/element.js"></script>
+<script  src="../static/js/axios.js"></script>
+<script  src="../static/js/utils.js"></script>
+<script  src="../static/js/config.js"></script>
+<script>
+  new Vue({
+    el: '#app',
+    data: {
+        name:'',
+        tableData: [],
+        currentPage: 1, // 当前页码
+        total: 20,      // 总条数
+        pageSize: 10,   // 每页的数据条数,
+        dialogTableVisible: false,
+        dialogFormVisible : false,
+        dialogFormTitle : '',
+        itemReadOnly : false,
+        itemShow:false,
+        dialogTypeFlag:'',
+        ruleForm: {
+            id:'',
+            name: '',
+            gender: [
+                {
+                    value: '男',
+                    label: '男'
+                },
+                {
+                    value: '女',
+                    label: '女'
+                }
+            ],
+            birthday:'',
+            age: 18,
+            value: ''
+        },
+        rules: {
+            name: [
+                { required: true, message: '请输入名称', trigger: 'change' },
+                { min: 2, max: 5, message: '长度在 4 到 10 个字符', trigger: 'change' }
+            ],
+            gender: [
+                { required: true, message: '请选择性别', trigger: 'blue' }
+            ],
+            birthday: [
+                { type: 'string', required: true, message: '请选择日期', trigger: 'blue' }
+            ],
+        },
+    },
+    mounted: function() {
+       this.queryUser();
+       this.total = this.tableData.length
+    } ,
+    methods: {
+        handleSizeChange(val) {
+            console.log(`每页 ${val} 条`);
+            this.currentPage = 1;
+            this.pageSize = val;
+        },
+        handleCurrentChange(val) {
+            console.log(`当前页: ${val}`);
+            this.currentPage = val;
+        },
+        changeValue: function() {
+            this.queryUser()
+        },
+        queryUser:function(){
+          axios.get('http://{0}:{1}/_user/query'.format(server_ip,server_port),
+              { params:
+                    {
+                        name:this.name
+                    }
+              }
+              ).then((res) => {
+                 console.log('queryUser=',res);
+                 if (res.data['Code'] == 200 ) {
+                     let newArr = res.data['Data'];
+                     for (let i=0;i<newArr.length;i++)  {
+                         newArr[i]['Birthday'] = newArr[i]['Birthday'].substr(0,10)
+                     }
+                     this.tableData = newArr
+                 } else {
+                     this.$notify.error({
+                         title: '错误',
+                         message: res.data['Msg'],
+                     });
+                 }
+          }).catch((error) => {
+             console.log('error=',error);
+          });
+
+       },
+        addUser:function(index,row){
+            this.dialogFormVisible = true
+            let config = {
+                headers: {
+                    "Content-Type": "multipart/form-data"
+                }
+            };
+            let formData = new FormData()
+            formData.append('name', this.ruleForm.name)
+            formData.append('gender', this.ruleForm.value)
+            formData.append('birthday', this.ruleForm.birthday)
+            formData.append('age', this.ruleForm.age)
+            axios.put('http://{0}:{1}/_user/'.format(server_ip,server_port),formData,config).then((res) => {
+                console.log('res=',res);
+                if (res.data['Code'] == 200 ) {
+                    this.$notify({
+                        title: '成功',
+                        message: '保存成功',
+                        type: 'success'
+                    });
+                    this.queryUser()
+                } else {
+                    this.$notify.error({
+                        title: '错误',
+                        message: res.data['Msg'],
+                    });
+                }
+            }).catch((error) => {
+                console.log('error=',error);
+            });
+
+            this.dialogFormVisible = false;
+        },
+        editUser:function(index,row){
+            this.dialogFormVisible = true
+            let config = {
+                headers: {
+                    "Content-Type": "multipart/form-data"
+                }
+            };
+            let formData = new FormData()
+            formData.append('id', this.ruleForm.id)
+            formData.append('name', this.ruleForm.name)
+            formData.append('gender', this.ruleForm.value)
+            formData.append('birthday', this.ruleForm.birthday)
+            formData.append('age', this.ruleForm.age)
+            axios.post('http://{0}:{1}/_user/'.format(server_ip,server_port),formData,config).then((res) => {
+                console.log('res=',res);
+                if (res.data['Code'] == 200 ) {
+                    this.$notify({
+                        title: '成功',
+                        message: '更新成功',
+                        type: 'success'
+                    });
+                    this.queryUser()
+                } else {
+                    this.$notify.error({
+                        title: '错误',
+                        message: res.data['Msg'],
+                    });
+                }
+            }).catch((error) => {
+                console.log('error=',error);
+            });
+
+            this.dialogFormVisible = false;
+
+        },
+        delUser:function(index,row) {
+            axios.delete('http://{0}:{1}/_user/'.format(server_ip,server_port),
+                { params:
+                    {
+                        id:row.Id
+                    }
+                }).then((res) => {
+
+                this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    if (res.data['Code'] == 200 ) {
+                        this.$notify({
+                            title: '成功',
+                            message: '用户删除成功',
+                            type: 'success'
+                        });
+                        this.queryUser();
+                    } else {
+                        this.$notify.error({
+                            title: '错误',
+                            message: res.data['Msg'],
+                        });
+                    }
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消删除'
+                    });
+                });
+
+            }).catch((error) => {
+                console.log('error=',error);
+            });
+        },
+        openAdd:function(){
+            this.dialogFormTitle = '用户新增'
+            this.itemReadOnly = false
+            this.dialogFormVisible = true
+            this.itemShow = false
+            this.dialogTypeFlag = 'add'
+            this.ruleForm.id=''
+            this.ruleForm.name = ''
+            this.ruleForm.value = ''
+            this.ruleForm.birthday = new Date()
+            this.ruleForm.age =18
+        },
+        openEdit:function(index,row){
+            this.dialogFormVisible = true
+            this.dialogFormTitle = '用户变更'
+            this.itemReadOnly = true
+            this.itemShow = true
+            this.dialogTypeFlag = 'edit'
+            this.ruleForm.id=row.Id
+            this.ruleForm.name = row.Name
+            this.ruleForm.value = row.Gender
+            this.ruleForm.birthday = row.Birthday
+            this.ruleForm.age = row.Age
+        },
+        saveUser:function(index,row){
+            if (this.dialogTypeFlag == 'add') {
+                this.addUser()
+            }
+            if (this.dialogTypeFlag == 'edit') {
+
+                this.editUser()
+            }
+        }
+    }
+  })
+</script>
+</html>
