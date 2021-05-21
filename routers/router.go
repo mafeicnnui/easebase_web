@@ -40,4 +40,12 @@ func init() {
 	beego.Router("/role/:id:int", &controllers.RoleControllerByParId{})
 	beego.Router("/role/privileges/:roleId:int", &controllers.RolePrivilegesControllerByParId{})
 
+	//db source
+	beego.Router("/ds", &controllers.DsController{})
+	beego.Router("/ds/:id:int", &controllers.DsControllerByParId{})
+
+	//server
+	beego.Router("/server", &controllers.ServerController{})
+	beego.Router("/server/:id:int", &controllers.ServerControllerByParId{})
+
 }
