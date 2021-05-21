@@ -15,6 +15,7 @@ func init() {
 	charset, _ := web.AppConfig.String("charset")
 	timezone, _ := web.AppConfig.String("timezone")
 	ds := user + ":" + password + "@tcp(" + url + ")/" + db + "?charset=" + charset + "&loc=" + timezone
+
 	orm.RegisterDataBase("default", "mysql", ds)
 
 	// register model
@@ -23,6 +24,8 @@ func init() {
 	orm.RegisterModel(new(TUserRole))
 	orm.RegisterModel(new(TRole))
 	orm.RegisterModel(new(TRolePrivs))
+	orm.RegisterModel(new(TDbSource))
+	orm.RegisterModel(new(TServer))
 
 	// create table
 	orm.RunSyncdb("default", false, true)
