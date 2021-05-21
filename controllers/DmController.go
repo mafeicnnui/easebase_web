@@ -14,7 +14,7 @@ func (c *DmController) Post() {
 	dm := c.GetString("dm")
 	o := orm.NewOrm()
 	var dmm []orm.Params
-	st := fmt.Sprintf("select dmm,dmmc from t_dmmx where dm='%s' order by dmm", dm)
+	st := fmt.Sprintf("SELECT '' AS dmm,'请选择...'  AS dmmc UNION ALL select dmm,dmmc from t_dmmx where dm='%s' order by dmm", dm)
 	_, err := o.Raw(st).Values(&dmm)
 	if err == nil {
 		c.SuccessJson("DmController->Get", &dmm)

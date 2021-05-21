@@ -103,9 +103,6 @@ let menu_query = {
         changeValue: function() {
             this.queryMenu()
         },
-        changeValue: function() {
-            this.queryMenu()
-        },
         queryMenu() {
             axios({
                 method: 'get',

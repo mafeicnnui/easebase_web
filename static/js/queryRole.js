@@ -96,9 +96,6 @@ let role_query = {
         changeValue: function() {
             this.queryRole()
         },
-        changeValue: function() {
-            this.queryRole()
-        },
         openDetail:function(index,row){
             console.log('openDetail=',index,row)
         },
