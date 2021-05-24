@@ -15,6 +15,10 @@ type DsControllerByParId struct {
 	BaseController
 }
 
+type DsServerController struct {
+	BaseController
+}
+
 type DsTestController struct {
 	BaseController
 }
@@ -190,4 +194,24 @@ func (c *DsControllerByParId) Get() {
 	} else {
 		c.SuccessJson("DsControllerByParId->Get", &u)
 	}
+}
+
+//get ds server
+func (c *DsServerController) Get() {
+	o := orm.NewOrm()
+	var dbServers []orm.Params
+	st := fmt.Sprintf(`SELECT '' AS dmm,'请选择...'  AS dmmc 
+						  	  union all
+						   	  SELECT id,db_desc FROM t_db_source 
+							   WHERE  (db_type IN(0)  AND USER IN('puppet','easylife','apptong') OR db_type NOT IN (0))
+							    AND STATUS=1 ORDER BY dmm+0`)
+	fmt.Println(st)
+	_, err := o.Raw(st).Values(&dbServers)
+	if err == nil {
+		c.SuccessJson("BackupServerController->Get", &dbServers)
+	} else {
+		fmt.Println(err.Error())
+		c.ErrorJson("BackupServerController->Get", 500, err.Error(), nil)
+	}
+
 }

@@ -43,9 +43,17 @@ func init() {
 	//db source
 	beego.Router("/ds", &controllers.DsController{})
 	beego.Router("/ds/:id:int", &controllers.DsControllerByParId{})
+	beego.Router("/ds/server", &controllers.DsServerController{})
 
 	//server
 	beego.Router("/server", &controllers.ServerController{})
 	beego.Router("/server/:id:int", &controllers.ServerControllerByParId{})
+
+	//db backup
+	beego.Router("/backup", &controllers.BackupController{})
+	beego.Router("/backup/:id:int", &controllers.BackupControllerByParId{})
+	beego.Router("/backup/server", &controllers.BackupServerController{})
+	// backup api
+	beego.Router("/api/backup/:flag/:tag", &controllers.BackupApiController{})
 
 }
