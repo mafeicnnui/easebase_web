@@ -33,15 +33,16 @@ type TDbBackupTotal struct {
 	Id             int
 	DbType         string    `orm:"size(1)"`
 	DbTag          string    `orm:"size(100)"`
-	BkBase         string    `orm:"size(20)"`
+	BkBase         string    `orm:"size(200)"`
 	TotalSize      string    `orm:"size(50)"`
 	StartTime      time.Time `orm:"auto_now_add;type(datetime) ;description(开始时间)"`
 	EndTime        time.Time `orm:"auto_now_add;type(datetime) ;description(结束时间)"`
-	ElapsedTBackup string    `orm:"size(100)"`
+	ElapsedBackup  string    `orm:"size(100)"`
 	ElapsedGzip    string    `orm:"size(1000)"`
+	Status         string    `orm:"size(1)"`
 	Creator        string    `orm:"size(10)"`
 	Updater        string    `orm:"size(10)"`
-	CreateDate     time.Time `orm:"auto_now_add;type(datetime) ;description(创建时间)"`
+	CreateDate     time.Time `orm:"type(date);description(创建时间)"`
 	LastUpdateDate time.Time `orm:"auto_now;type(datetime) ;description(修改时间)"`
 }
 
@@ -54,12 +55,12 @@ type TDbBackupDetail struct {
 	DbSize         string    `orm:"size(50)"`
 	StartTime      time.Time `orm:"auto_now_add;type(datetime) ;description(开始时间)"`
 	EndTime        time.Time `orm:"auto_now_add;type(datetime) ;description(结束时间)"`
-	ElapsedTBackup string    `orm:"size(100)"`
+	ElapsedBackup  string    `orm:"size(100)"`
 	ElapsedGzip    string    `orm:"size(1000)"`
 	Status         string    `orm:"size(1)"`
 	Error          string    `orm:"size(2000)"`
 	Creator        string    `orm:"size(10)"`
 	Updater        string    `orm:"size(10)"`
-	CreateDate     time.Time `orm:"auto_now_add;type(datetime) ;description(创建时间)"`
+	CreateDate     time.Time `orm:"type(date);description(创建时间)"`
 	LastUpdateDate time.Time `orm:"auto_now;type(datetime) ;description(修改时间)"`
 }

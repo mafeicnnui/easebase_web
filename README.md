@@ -21,7 +21,6 @@
 
     ./sql/puppet2.0.sql
 
-
 五、启动
 
     bee run
@@ -30,10 +29,8 @@
         
 六、配置 
 
-    backend: conf/app.conf
+   conf/app.conf
     
-    front: static/js/config.js
-
 七、访问
 
     http://ip:9000/
