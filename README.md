@@ -34,3 +34,24 @@
 七、访问
 
     http://ip:9000/
+    
+八、其它
+
+   	1、Windows 下go编译成linux可执行文件
+   	
+        SET CGO_ENABLED=0
+        SET GOOS=linux
+        SET GOARCH=amd64
+        go build dbbackup.go
+        chmod +x dbbackup
+        ./dbbackup mysql_10_2_39_40_3306
+   
+   	2、Windows 下go编译成可执行文件
+   	
+        SET CGO_ENABLED=0
+        SET GOOS=windows
+        SET GOARCH=amd64
+        go build dbbackup.go
+        chmod +x dbbackup
+        ./dbbackup mysql_10_2_39_40_3306
+   
