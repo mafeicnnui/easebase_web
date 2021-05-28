@@ -53,7 +53,11 @@ func init() {
 	beego.Router("/backup", &controllers.BackupController{})
 	beego.Router("/backup/:id:int", &controllers.BackupControllerByParId{})
 	beego.Router("/backup/server", &controllers.BackupServerController{})
-	// backup api
+
+	// public api
+	beego.Router("/api/public/:flag", &controllers.PublicApiController{})
+
+	// agent api
 	beego.Router("/api/backup/:flag/:tag", &controllers.BackupApiController{})
 
 }
