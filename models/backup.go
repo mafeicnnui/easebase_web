@@ -31,7 +31,6 @@ type TDbBackupConfig struct {
 
 type TDbBackupTotal struct {
 	Id             int
-	DbType         string    `orm:"size(1)"`
 	DbTag          string    `orm:"size(100)"`
 	BkBase         string    `orm:"size(200)"`
 	TotalSize      string    `orm:"size(50)"`

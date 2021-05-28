@@ -2,8 +2,10 @@ package utils
 
 import (
 	"easebase_web/models"
+	"errors"
 	"fmt"
 	"github.com/beego/beego/v2/client/orm"
+	"strconv"
 	"time"
 )
 
@@ -12,25 +14,92 @@ type ReturnMsg struct {
 	Msg  string
 }
 
+//检测备份服务器状态
+func CheckBackupServerStatus(dbTag string) int {
+	o := orm.NewOrm()
+	var res []orm.Params
+	st := fmt.Sprintf(`select count(0) as rec from t_db_backup_config a,t_server b where a.server_id=b.id and a.db_tag='%s' and b.status='0'`, dbTag)
+	fmt.Println(st)
+	_, err1 := o.Raw(st).Values(&res)
+	if err1 != nil {
+		panic("Func CheckServerBackupStatus Error:" + err1.Error())
+	}
+	val, err2 := strconv.Atoi(res[0]["rec"].(string))
+	if err2 != nil {
+		panic("Func CheckServerBackupStatus Error:" + err2.Error())
+	}
+	return val
+}
+
+//检测备份标识
+func CheckBackupDbTag(dbTag string) int {
+	o := orm.NewOrm()
+	var res []orm.Params
+	st := fmt.Sprintf(`select count(0) as rec from t_db_backup_config where db_tag='%s'`, dbTag)
+	fmt.Println(st)
+	_, err1 := o.Raw(st).Values(&res)
+	if err1 != nil {
+		panic("Func CheckBackupDbTag Error:" + err1.Error())
+	}
+	val, err2 := strconv.Atoi(res[0]["rec"].(string))
+	if err2 != nil {
+		panic("Func CheckBackupDbTag Error:" + err2.Error())
+	}
+	return val
+}
+
+//检测任务是否禁用
+func CheckBackupTaskStatus(dbTag string) int {
+	o := orm.NewOrm()
+	var res []orm.Params
+	st := fmt.Sprintf(`select count(0) as rec from t_db_backup_config a,t_server b where a.server_id=b.id and a.db_tag='%s' and a.status='0'`, dbTag)
+	fmt.Println(st)
+	_, err1 := o.Raw(st).Values(&res)
+	if err1 != nil {
+		panic("Func CheckBackupTaskStatus Error:" + err1.Error())
+	}
+	val, err2 := strconv.Atoi(res[0]["rec"].(string))
+	if err2 != nil {
+		panic("Func CheckBackupTaskStatus Error:" + err2.Error())
+	}
+	return val
+}
+
+//获取备份配置
 func GetBackupConfig(dbTag string) ([]orm.Params, error) {
 	o := orm.NewOrm()
 	var cfg []orm.Params
-	st := fmt.Sprintf(`SELECT      
-									a.db_tag,
-									c.ip       AS db_ip,
-									c.port     AS db_port,
-									c.service  AS db_service,
-									c.user     AS db_user,
-									c.password AS db_pass,
-									a.expire,a.bk_base,a.script_path,a.script_file,a.bk_cmd,a.run_time,
-									b.server_ip,b.server_port,b.server_user,b.server_pass,b.server_os,
-									a.comments,a.backup_databases,a.api_server,a.status
-							FROM t_db_backup_config a,t_server b,t_db_source c
-							WHERE a.server_id=b.id AND a.db_id=c.id AND a.db_tag='%s' AND b.status='1'`, dbTag)
+
+	if CheckBackupServerStatus(dbTag) > 0 {
+		return nil, errors.New("备份服务器已禁用")
+	}
+
+	if CheckBackupDbTag(dbTag) == 0 {
+		return nil, errors.New(fmt.Sprintf(`备份标识:'%s'不存在`, dbTag))
+	}
+
+	if CheckBackupTaskStatus(dbTag) > 0 {
+		return nil, errors.New("备份任务已禁用")
+	}
+
+	st := fmt.Sprintf(
+		`select      
+					a.db_tag,
+					c.ip       AS db_ip,
+					c.port     AS db_port,
+					c.service  AS db_service,
+					c.user     AS db_user,
+					c.password AS db_pass,
+					a.expire,a.bk_base,a.script_path,a.script_file,a.bk_cmd,a.run_time,
+					b.server_ip,b.server_port,b.server_user,b.server_pass,b.server_os,
+					a.comments,a.backup_databases,a.api_server,a.status
+			from t_db_backup_config a,t_server b,t_db_source c
+			where a.server_id=b.id AND a.db_id=c.id AND a.db_tag='%s' AND b.status='1'`, dbTag)
 	_, err := o.Raw(st).Values(&cfg)
 	return cfg, err
 }
 
+//写备份汇总日志
 func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 	fmt.Println("SaveBackupTotal=>config:", cfg)
 	// parse datetime column
@@ -47,7 +116,6 @@ func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 	o := orm.NewOrm()
 	if CheckTabExists("t_db_backup_total", vv) == 0 {
 		total := models.TDbBackupTotal{
-			DbType:        cfg["db_type"],
 			DbTag:         cfg["db_tag"],
 			BkBase:        cfg["bk_base"],
 			TotalSize:     cfg["total_size"],
@@ -68,7 +136,6 @@ func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 		}
 	} else {
 		st := `update t_db_backup_total set 
-                    db_type         = ?,
 					bk_base         = ?,
 					total_size      = ?,
 					start_time      = ?,
@@ -80,7 +147,6 @@ func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 				where db_tag = ? and create_date=?`
 
 		_, err := o.Raw(st,
-			cfg["db_type"],
 			cfg["bk_base"],
 			cfg["total_size"],
 			StartTime,
@@ -100,6 +166,7 @@ func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 
 }
 
+//写备份明细日志
 func SaveBackupDetail(cfg map[string]string) ReturnMsg {
 	fmt.Println("SaveBackupDetail=>config:", cfg)
 	// parse datetime column

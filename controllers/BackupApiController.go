@@ -33,7 +33,6 @@ func (c *BackupApiController) Post() {
 	//read variable parameter
 	flag := c.Ctx.Input.Param(":flag")
 	tag := c.Ctx.Input.Param(":tag")
-
 	if flag == "config" {
 		cfg, err := utils.GetBackupConfig(tag)
 		if err == nil {
