@@ -44,7 +44,7 @@
         SET GOARCH=amd64
         go build dbbackup.go
         chmod +x dbbackup
-        ./dbbackup mysql_10_2_39_40_3306
+        ./dbbackup -api_server=10.16.47.114:9000 -db_tag=mysql_10_2_39_80_3306
    
    	2、Windows 下go编译成可执行文件
    	
