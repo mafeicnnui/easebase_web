@@ -3,7 +3,6 @@ package controllers
 import (
 	"easebase_web/utils"
 	"encoding/json"
-	"fmt"
 	//"github.com/beego/beego/v2/client/orm"
 	//"net/url"
 )
@@ -43,7 +42,6 @@ func (c *BackupApiController) Post() {
 	} else if flag == "log" {
 		par := map[string]string{}
 		err := json.Unmarshal(c.Ctx.Input.RequestBody, &par)
-		fmt.Println("log par=", par)
 		if err != nil {
 			c.ErrorJson("BackupApiController->log", 500, err.Error(), nil)
 		}
@@ -56,7 +54,6 @@ func (c *BackupApiController) Post() {
 
 	} else if flag == "detail" {
 		par := map[string]string{}
-		fmt.Println("detail par=", par)
 		err := json.Unmarshal(c.Ctx.Input.RequestBody, &par)
 		if err != nil {
 			c.ErrorJson("BackupApiController->detail", 500, err.Error(), nil)
