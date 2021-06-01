@@ -19,7 +19,6 @@ func CheckBackupServerStatus(dbTag string) int {
 	o := orm.NewOrm()
 	var res []orm.Params
 	st := fmt.Sprintf(`select count(0) as rec from t_db_backup_config a,t_server b where a.server_id=b.id and a.db_tag='%s' and b.status='0'`, dbTag)
-	fmt.Println(st)
 	_, err1 := o.Raw(st).Values(&res)
 	if err1 != nil {
 		panic("Func CheckServerBackupStatus Error:" + err1.Error())
@@ -36,7 +35,6 @@ func CheckBackupDbTag(dbTag string) int {
 	o := orm.NewOrm()
 	var res []orm.Params
 	st := fmt.Sprintf(`select count(0) as rec from t_db_backup_config where db_tag='%s'`, dbTag)
-	fmt.Println(st)
 	_, err1 := o.Raw(st).Values(&res)
 	if err1 != nil {
 		panic("Func CheckBackupDbTag Error:" + err1.Error())
@@ -53,7 +51,6 @@ func CheckBackupTaskStatus(dbTag string) int {
 	o := orm.NewOrm()
 	var res []orm.Params
 	st := fmt.Sprintf(`select count(0) as rec from t_db_backup_config a,t_server b where a.server_id=b.id and a.db_tag='%s' and a.status='0'`, dbTag)
-	fmt.Println(st)
 	_, err1 := o.Raw(st).Values(&res)
 	if err1 != nil {
 		panic("Func CheckBackupTaskStatus Error:" + err1.Error())
@@ -101,18 +98,15 @@ func GetBackupConfig(dbTag string) ([]orm.Params, error) {
 
 //写备份汇总日志
 func SaveBackupTotal(cfg map[string]string) ReturnMsg {
-	fmt.Println("SaveBackupTotal=>config:", cfg)
 	// parse datetime column
 	template1 := "2006-01-02 15:04:05"
 	template2 := "2006-01-02"
 	StartTime, _ := time.Parse(template1, cfg["start_time"])
 	EndTime, _ := time.Parse(template1, cfg["end_time"])
 	CreateDate, _ := time.Parse(template2, cfg["create_date"])
-	fmt.Println("CreateDate=", CreateDate)
 
 	// check tab exists
 	vv := fmt.Sprintf(` where db_tag='%s' and create_date='%s'`, cfg["db_tag"], cfg["create_date"])
-	fmt.Println("SaveBackupTotal=", vv)
 	o := orm.NewOrm()
 	if CheckTabExists("t_db_backup_total", vv) == 0 {
 		total := models.TDbBackupTotal{
@@ -143,7 +137,8 @@ func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 					elapsed_backup  = ?,
 					elapsed_gzip    = ?,
                     status          = ?,
-					create_date     = ?
+					create_date     = ?,
+                    last_update_date = now()
 				where db_tag = ? and create_date=?`
 
 		_, err := o.Raw(st,
@@ -168,18 +163,15 @@ func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 
 //写备份明细日志
 func SaveBackupDetail(cfg map[string]string) ReturnMsg {
-	fmt.Println("SaveBackupDetail=>config:", cfg)
 	// parse datetime column
 	template1 := "2006-01-02 15:04:05"
 	template2 := "2006-01-02"
 	StartTime, _ := time.Parse(template1, cfg["start_time"])
 	EndTime, _ := time.Parse(template1, cfg["end_time"])
 	CreateDate, _ := time.Parse(template2, cfg["create_date"])
-	fmt.Println("CreateDate=", CreateDate)
 
 	// check tab exists
 	vv := fmt.Sprintf(` where db_tag='%s' and db_name='%s' and create_date='%s'`, cfg["db_tag"], cfg["db_name"], cfg["create_date"])
-	fmt.Println("SaveBackupDetail=", vv)
 	o := orm.NewOrm()
 	if CheckTabExists("t_db_backup_detail", vv) == 0 {
 		detail := models.TDbBackupDetail{
@@ -216,8 +208,9 @@ func SaveBackupDetail(cfg map[string]string) ReturnMsg {
 					elapsed_gzip    = ?,
                     status          = ?,
                     error           = ?,
-					create_date     = ?
-				where db_tag = ? and create_date=?`
+					create_date     = ?,
+					last_update_date = now()
+				where db_tag = ? and db_name= ? and create_date=?`
 
 		_, err := o.Raw(st,
 			cfg["db_name"],
@@ -232,6 +225,7 @@ func SaveBackupDetail(cfg map[string]string) ReturnMsg {
 			cfg["error"],
 			CreateDate,
 			cfg["db_tag"],
+			cfg["db_name"],
 			cfg["create_date"]).Exec()
 		if err != nil {
 			return ReturnMsg{Code: -1, Msg: err.Error()}

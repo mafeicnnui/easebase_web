@@ -3,15 +3,18 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/beego/beego/v2/client/orm"
 	_ "github.com/go-sql-driver/mysql"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	_ "os"
 	"os/exec"
 	"strconv"
+	"strings"
 	_ "strings"
 	"time"
 )
@@ -37,6 +40,16 @@ func getDate() string {
 	return time.Now().Format("2006-01-02 03:04:05")[0:10]
 }
 
+func getDate2() string {
+	year := time.Now().Format("2006")
+	month := time.Now().Format("01")
+	day := time.Now().Format("02")
+	//hour   := time.Now().Format("15")
+	//min    := time.Now().Format("04")
+	//second := time.Now().Format("05")
+	return year + month + day
+}
+
 func getTimeString(t time.Time) string {
 	return t.Format("2006-01-02 03:04:05")
 }
@@ -54,9 +67,9 @@ func InitDB(cfg map[string]interface{}) {
 	orm.RegisterDataBase("default", "mysql", ds)
 }
 
-func GetConfig(tag string) result {
+func GetConfig(ApiServer string, DbTag string) result {
 	var res result
-	url := fmt.Sprintf(`http://10.16.47.114:9000/api/backup/config/%s`, tag)
+	url := fmt.Sprintf(`http://%s/api/backup/config/%s`, ApiServer, DbTag)
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
@@ -82,12 +95,12 @@ func getDatabases(pdb string) []orm.Params {
 	return dbs
 }
 
-func GetPassword(key interface{}, password interface{}) string {
+func GetPassword(cfg map[string]interface{}) string {
 	var res result
-	url := `http://10.16.47.114:9000/api/public/decode`
+	url := fmt.Sprintf(`http://%s/api/public/decode`, cfg["api_server"])
 	tag := map[string]interface{}{
-		"key":      key,
-		"password": password,
+		"key":      cfg["db_user"],
+		"password": cfg["db_pass"],
 	}
 	data, _ := json.Marshal(tag)
 	req, _ := http.NewRequest("POST", url, bytes.NewReader(data))
@@ -115,16 +128,25 @@ func GetFIleSize(filename string) int {
 	return int(fi.Size())
 }
 
+func IsDir(fileAddr string) bool {
+	s, err := os.Stat(fileAddr)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	return s.IsDir()
+}
+
 func preProcess(cfg map[string]interface{}) map[string]interface{} {
-	cfg["bk_path"] = fmt.Sprintf(`%s/%s`, cfg["bk_base"], getDate())
-	cfg["new_pass"] = GetPassword(cfg["db_user"], cfg["db_pass"])
+	cfg["bk_path"] = fmt.Sprintf(`%s/%s`, cfg["bk_base"], getDate2())
+	cfg["new_pass"] = GetPassword(cfg)
 	InitDB(cfg)
 	return cfg
 }
 
 func WriteLogTotal(cfg map[string]string) result {
 	// 请求URL
-	url := fmt.Sprintf(`http://10.16.47.114:9000/api/backup/log/%s`, cfg["db_tag"])
+	url := fmt.Sprintf(`http://%s/api/backup/log/%s`, cfg["api_server"], cfg["db_tag"])
 
 	//备份汇总日志
 	total := map[string]string{
@@ -147,17 +169,14 @@ func WriteLogTotal(cfg map[string]string) result {
 	client := &http.Client{}
 	resp, _ := client.Do(req)
 	body, _ := ioutil.ReadAll(resp.Body)
-	//fmt.Println("body:",body)
-	//fmt.Println(string(body))
 	var res result
 	_ = json.Unmarshal(body, &res)
-	//fmt.Println("Msg=", res)
 	return res
 }
 
 func WriteLogDetail(cfg map[string]string) result {
 	// 请求URL
-	url := fmt.Sprintf(`http://10.16.47.114:9000/api/backup/detail/%s`, cfg["db_tag"])
+	url := fmt.Sprintf(`http://%s/api/backup/detail/%s`, cfg["api_server"], cfg["db_tag"])
 
 	//备份明细日志
 	detail := map[string]interface{}{
@@ -182,20 +201,22 @@ func WriteLogDetail(cfg map[string]string) result {
 	client := &http.Client{}
 	resp, _ := client.Do(req)
 	body, _ := ioutil.ReadAll(resp.Body)
-	//fmt.Println(string(body))
 	var res result
 	_ = json.Unmarshal(body, &res)
-	//fmt.Println("Msg=", res)
 	return res
 }
 
 func doBackup(cfg map[string]interface{}) {
 	//create backup directory
-	err := os.MkdirAll(cfg["bk_path"].(string), os.ModePerm)
-	if err != nil {
-		fmt.Println(err)
+	if IsDir(cfg["bk_path"].(string)) {
+		fmt.Println(fmt.Sprintf(`Directory '%s' already exists!`, cfg["bk_path"].(string)))
 	} else {
-		fmt.Println(fmt.Sprintf(`Directory '%s' created!`, cfg["bk_path"].(string)))
+		err := os.MkdirAll(cfg["bk_path"].(string), os.ModePerm)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Println(fmt.Sprintf(`Directory '%s' created!`, cfg["bk_path"].(string)))
+		}
 	}
 
 	// init sum var
@@ -204,7 +225,7 @@ func doBackup(cfg map[string]interface{}) {
 	ElapsedGzipHj := 0
 
 	//loop backup db
-	dbs := getDatabases("coupons")
+	dbs := getDatabases(cfg["backup_databases"].(string))
 	BackupBeginTime := getTime()
 	GStatus := "0"
 	fmt.Println("Starting backup database please wait...")
@@ -228,7 +249,7 @@ func doBackup(cfg map[string]interface{}) {
 			db,
 			FileName,
 			ErrName)
-		//fmt.Println(Command)
+
 		cmd := exec.Command(ShellToUse, "-c", Command)
 		_, err := cmd.Output()
 		if err != nil {
@@ -251,6 +272,7 @@ func doBackup(cfg map[string]interface{}) {
 		// prepare detail interface parameter
 		detail := map[string]string{
 			"db_tag":         cfg["db_tag"].(string),
+			"api_server":     cfg["api_server"].(string),
 			"db_name":        db,
 			"create_date":    getDate(),
 			"file_name":      GzipName,
@@ -268,13 +290,14 @@ func doBackup(cfg map[string]interface{}) {
 
 		//sum static
 		DbSizeHj = DbSizeHj + GetFIleSize(FullGzipName)
-		ElapsedBackupHj = ElapsedBackupHj + getSeconds(EndTime, StartTime)
-		ElapsedGzipHj = ElapsedGzipHj + getSeconds(ZipTime, EndTime)
+		ElapsedBackupHj = ElapsedBackupHj + getSeconds(StartTime, EndTime)
+		ElapsedGzipHj = ElapsedGzipHj + getSeconds(EndTime, ZipTime)
 	}
 
 	// prepare total interface parameter
 	total := map[string]string{
 		"db_tag":         cfg["db_tag"].(string),
+		"api_server":     cfg["api_server"].(string),
 		"bk_base":        cfg["bk_base"].(string),
 		"create_date":    getDate(),
 		"start_time":     getTimeString(BackupBeginTime),
@@ -287,23 +310,38 @@ func doBackup(cfg map[string]interface{}) {
 
 	// write backup total log
 	WriteLogTotal(total)
+	fmt.Println("Backup database complete!")
 
 }
 
+func showConfig(cfg map[string]interface{}) {
+	fmt.Println(strings.Repeat("-", 140))
+	fmt.Println(fmt.Sprintf(`%-20s%-120s`, "配置项", "配置值"))
+	fmt.Println(strings.Repeat("-", 140))
+	for k, v := range cfg {
+		fmt.Println(fmt.Sprintf(`%-20s=%-120s`, k, v))
+	}
+	fmt.Println(strings.Repeat("-", 140))
+}
+
 func main() {
+
 	//全局配置
 	var cfg map[string]interface{}
 
 	//命令行获取tag参数
-	tag := GetTag()
+	api := flag.String("api_server", "", "接口服务地址,格式：IP:PORT")
+	tag := flag.String("db_tag", "", "数据备份标识")
+	show := flag.Bool("config", false, "是否显示配置信息")
+	flag.Parse()
 
 	//调用接口读取配置
-	res := GetConfig(tag)
+	res := GetConfig(*api, *tag)
 	if res.Code == 200 {
 		cfg = res.Data[0]
-		//for k, v := range cfg  {
-		//	fmt.Println(k,"=", v)
-		//}
+		if *show {
+			showConfig(cfg)
+		}
 	} else {
 		panic(res.Msg)
 	}

@@ -18,6 +18,10 @@ type BackupServerController struct {
 	BaseController
 }
 
+type BackupLogController struct {
+	BaseController
+}
+
 //query backup
 func (c *BackupController) Get() {
 	dbTag := c.GetString("db_tag")
@@ -198,6 +202,63 @@ func (c *BackupServerController) Get() {
 	} else {
 		fmt.Println(err.Error())
 		c.ErrorJson("BackupServerController->Get", 500, err.Error(), nil)
+	}
+}
+
+//query backup log
+func (c *BackupLogController) Get() {
+	dbTag := c.GetString("db_tag")
+	dbEnv := c.GetString("db_env")
+	dbType := c.GetString("db_type")
+	beginDate := c.GetString("begin_date")
+	endDate := c.GetString("end_date")
+
+	vWhere := ""
+	if dbTag != "" {
+		st := fmt.Sprintf(` and (instr(a.db_tag,'%s')>0 or instr(a.comments,'%s')>0)`, dbTag, dbTag)
+		vWhere = vWhere + st
+	}
+	if dbEnv != "" {
+		st := fmt.Sprintf(` and c.db_env='%s'`, dbEnv)
+		vWhere = vWhere + st
+	}
+	if dbType != "" {
+		st := fmt.Sprintf(` and a.db_type='%s'`, dbType)
+		vWhere = vWhere + st
+	}
+
+	if beginDate != "" {
+		st := fmt.Sprintf(` and a.create_date>='%s'`, beginDate)
+		vWhere = vWhere + st
+	}
+
+	if endDate != "" {
+		st := fmt.Sprintf(` and a.create_date<='%s'`, endDate)
+		vWhere = vWhere + st
+	}
+
+	o := orm.NewOrm()
+	var backups []orm.Params
+	st := fmt.Sprintf(
+		`SELECT  b.id, 
+                        a.comments, 
+                        b.db_tag,
+						cast(b.create_date as char) as create_date,
+						cast(b.start_time as char) as start_time,
+						cast(b.end_time as char) as end_time,
+						b.total_size,
+                        b.elapsed_backup, 
+                        b.elapsed_gzip,
+						CASE b.STATUS WHEN '1' THEN '<span style=''color: red''>失败</span>' WHEN '0' THEN '成功' END  status
+				FROM  t_db_backup_config a,t_db_backup_total b,t_db_source c
+				WHERE a.db_tag=b.db_tag AND a.db_id=c.id  AND a.status='1' %s
+				 order by b.create_date,b.db_tag`, vWhere)
+	fmt.Println(st)
+	_, err := o.Raw(st).Values(&backups)
+	if err == nil {
+		c.SuccessJson("BackupLogController->Get", &backups)
+	} else {
+		c.ErrorJson("BackupLogController->Get", 500, err.Error(), nil)
 	}
 
 }

@@ -29,7 +29,6 @@ func CheckTabExists(pTab string, pWhere string) int {
 	o := orm.NewOrm()
 	var res []orm.Params
 	st := fmt.Sprintf(`select count(0) as rec from %s  %s`, pTab, pWhere)
-	fmt.Println(st)
 	_, err1 := o.Raw(st).Values(&res)
 	if err1 != nil {
 		panic("Func CheckTabExists Error:" + err1.Error())
@@ -38,6 +37,7 @@ func CheckTabExists(pTab string, pWhere string) int {
 	if err2 != nil {
 		panic("Func CheckTabExists Error:" + err2.Error())
 	}
+	fmt.Println("CheckTabExists=", st, val)
 	return val
 }
 
@@ -45,9 +45,7 @@ func Decrypt(pPassword string, pKey string) ([]orm.Params, error) {
 	o := orm.NewOrm()
 	var res []orm.Params
 	st := fmt.Sprintf(`select aes_decrypt(unhex('%s'),'%s') as password`, pPassword, reverseString(pKey))
-	fmt.Println("Decrypt=", st)
 	_, err := o.Raw(st).Values(&res)
-	fmt.Println("Decrypt=", res)
 	return res, err
 }
 
