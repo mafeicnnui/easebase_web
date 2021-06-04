@@ -22,6 +22,10 @@ type BackupLogController struct {
 	BaseController
 }
 
+type BackupTaskController struct {
+	BaseController
+}
+
 //query backup
 func (c *BackupController) Get() {
 	dbTag := c.GetString("db_tag")
@@ -228,7 +232,7 @@ func (c *BackupLogController) Get() {
 	}
 
 	if beginDate != "" {
-		st := fmt.Sprintf(` and a.create_date>='%s'`, beginDate)
+		st := fmt.Sprintf(` and b.create_date>='%s'`, beginDate)
 		vWhere = vWhere + st
 	}
 
@@ -253,12 +257,43 @@ func (c *BackupLogController) Get() {
 				FROM  t_db_backup_config a,t_db_backup_total b,t_db_source c
 				WHERE a.db_tag=b.db_tag AND a.db_id=c.id  AND a.status='1' %s
 				 order by b.create_date,b.db_tag`, vWhere)
-	fmt.Println(st)
 	_, err := o.Raw(st).Values(&backups)
 	if err == nil {
 		c.SuccessJson("BackupLogController->Get", &backups)
 	} else {
 		c.ErrorJson("BackupLogController->Get", 500, err.Error(), nil)
+	}
+
+}
+
+//query backup task
+func (c *BackupTaskController) Get() {
+	dbEnv := c.GetString("db_env")
+	dbType := c.GetString("db_type")
+	vWhere := ""
+
+	if dbEnv != "" {
+		st := fmt.Sprintf(` and c.db_env='%s'`, dbEnv)
+		vWhere = vWhere + st
+	}
+	if dbType != "" {
+		st := fmt.Sprintf(` and a.db_type='%s'`, dbType)
+		vWhere = vWhere + st
+	}
+
+	o := orm.NewOrm()
+	var backups []orm.Params
+	st := fmt.Sprintf(
+		`SELECT a.db_tag as dmm,a.comments as dmmc
+				 FROM t_db_backup_config a ,t_server b,t_db_source c
+				   WHERE a.STATUS=1 AND a.server_id=b.id AND a.db_id=c.id
+				    %s  ORDER BY c.db_type,a.db_id`, vWhere)
+	_, err := o.Raw(st).Values(&backups)
+	if err == nil {
+		fmt.Println("backup=", &backups)
+		c.SuccessJson("BackupTaskController->Get", &backups)
+	} else {
+		c.ErrorJson("BackupTaskController->Get", 500, err.Error(), nil)
 	}
 
 }
