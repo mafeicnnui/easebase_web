@@ -7,116 +7,153 @@ import (
 	"strconv"
 )
 
-type BackupController struct {
+type SyncController struct {
 	BaseController
 }
 
-type BackupControllerByParId struct {
+type SyncControllerByParId struct {
 	BaseController
 }
-type BackupServerController struct {
-	BaseController
-}
-
-type BackupLogController struct {
+type SyncServerController struct {
 	BaseController
 }
 
-type BackupTaskController struct {
+type SyncLogController struct {
 	BaseController
 }
 
-//query backup
-func (c *BackupController) Get() {
-	dbTag := c.GetString("db_desc")
-	dbEnv := c.GetString("db_env")
-	dbType := c.GetString("db_type")
+type SyncTaskController struct {
+	BaseController
+}
+
+//query sync
+func (c *SyncController) Get() {
+	syncTag := c.GetString("sync_tag")
+	marketId := c.GetString("market_id")
+	syncYwlx := c.GetString("sync_ywlx")
+	syncType := c.GetString("sync_type")
+	status := c.GetString("status")
 
 	vWhere := ""
-	if dbTag != "" {
-		st := fmt.Sprintf(` and (instr(a.db_tag,'%s')>0 or instr(a.comments,'%s')>0)`, dbTag, dbTag)
+	if syncTag != "" {
+		st := fmt.Sprintf(` and instr(a.sync_tag,'%s')>0`, syncTag)
 		vWhere = vWhere + st
 	}
-	if dbEnv != "" {
-		st := fmt.Sprintf(` and c.db_env='%s'`, dbEnv)
+	if marketId != "" {
+		st := fmt.Sprintf(` and instr(a.sync_col_val,'%s')>0`, marketId)
 		vWhere = vWhere + st
 	}
-	if dbType != "" {
-		st := fmt.Sprintf(` and a.db_type='%s'`, dbType)
+	if syncYwlx != "" {
+		st := fmt.Sprintf(` and a.sync_ywlx='%s'`, syncYwlx)
+		vWhere = vWhere + st
+	}
+	if syncType != "" {
+		st := fmt.Sprintf(` and a.sync_type='%s'`, syncType)
+		vWhere = vWhere + st
+	}
+	if status != "" {
+		st := fmt.Sprintf(` and a.status='%s'`, status)
 		vWhere = vWhere + st
 	}
 
 	o := orm.NewOrm()
-	var backups []orm.Params
+	var sync []orm.Params
 	st := fmt.Sprintf(
-		`select
-                  a.id,a.comments,a.db_tag,a.expire,a.run_time,
-                  concat(b.server_ip,':',b.server_port),a.api_server,
-                  CASE a.STATUS WHEN '1' THEN '启用' WHEN '0' THEN '禁用' END  as  status,
-                  CASE a.task_status WHEN '1' THEN '<span style=''color: red''>运行中</span>' WHEN '0' THEN '停止' END as  task_status,
-				  a.updater,
-				  a.last_update_date      
-              from t_db_backup_config a,t_server b,t_db_source c
-              where a.server_id=b.id  AND a.db_id=c.id and b.status='1'  %s `, vWhere)
-	fmt.Println(st)
-	_, err := o.Raw(st).Values(&backups)
+		`SELECT  a.id,
+                     concat(substr(a.sync_tag,1,40),'...') as sync_tag_,             
+                     a.sync_tag,
+                     concat(substr(a.comments,1,30),'...') as comments,
+                     CONCAT(b.server_ip,':',b.server_port) AS sync_server,
+                     c.dmmc AS  sync_ywlx,
+                     a.run_time,
+                     CASE WHEN INSTR(api_server,',')>0 THEN 
+                        SUBSTR(a.api_server,1,INSTR(a.api_server,',')-1)
+                     ELSE                         
+                        a.api_server
+                     END AS api_server ,
+                     a.api_server as back_api_server,
+                     CASE a.status WHEN '1' THEN '启用' WHEN '0' THEN '禁用' END  status,
+                     CASE a.task_status 
+                       WHEN '1' THEN 
+                     CONCAT('<span style=''color: red''>运行中(',TIMESTAMPDIFF(SECOND,a.task_create_time,NOW()),'s)</span>')
+                       WHEN '0' THEN '停止' END  task_status
+             FROM t_db_sync_config a,t_server b ,t_dmmx c,t_dmmx d
+            WHERE a.server_id=b.id AND b.status='1' 
+              AND c.dm='08' AND d.dm='09'
+              AND a.sync_ywlx=c.dmm
+              AND a.sync_type=d.dmm %s`, vWhere)
+	_, err := o.Raw(st).Values(&sync)
 	if err == nil {
-		c.SuccessJson("BackupController->Get", &backups)
+		c.SuccessJson("SyncController->Get", &sync)
 	} else {
-		c.ErrorJson("BackupController->Get", 500, err.Error(), nil)
+		c.ErrorJson("SyncController->Get", 500, err.Error(), nil)
 	}
 
 }
 
-//insert backup
-func (c *BackupController) Put() {
-	ServerId := c.GetString("server_id")
-	DbId := c.GetString("db_id")
-	DbType := c.GetString("db_type")
-	DbTag := c.GetString("db_tag")
-	Expire, _ := c.GetInt("expire")
-	BkBase := c.GetString("bk_base")
+//insert sync
+func (c *SyncController) Put() {
+	ServerId, _ := c.GetInt("server_id")
+	SourDbId, _ := c.GetInt("sour_db_id")
+	DestDbId, _ := c.GetInt("dest_db_id")
+	SyncTag := c.GetString("sync_tag")
+	SyncYwlx := c.GetString("sync_ywlx")
+	SyncType := c.GetString("sync_type")
 	ScriptPath := c.GetString("script_path")
 	ScriptFile := c.GetString("script_file")
-	BkCmd := c.GetString("bk_cmd")
 	RunTime := c.GetString("run_time")
 	Comments := c.GetString("comments")
-	BackupDatabases := c.GetString("backup_databases")
+	SyncSchema := c.GetString("sync_schema")
+	SyncSchemaDest := c.GetString("sync_schema_dest")
+	SyncTable := c.GetString("sync_table")
+	BatchSize, _ := c.GetInt("batch_size")
+	BatchSizeIncr, _ := c.GetInt("batch_size_incr")
+	SyncGap, _ := c.GetInt("sync_gap")
+	SyncColVal := c.GetString("sync_col_val")
+	SyncColName := c.GetString("sync_col_name")
+	SyncTimeType := c.GetString("sync_time_type")
+	SyncRepairDay, _ := c.GetInt("sync_repair_day")
 	ApiServer := c.GetString("api_server")
 	Status := c.GetString("status")
-	TaskStatus := c.GetString("task_status")
 
 	o := orm.NewOrm()
-	backup := models.TDbBackupConfig{
-		ServerId:        ServerId,
-		DbId:            DbId,
-		DbType:          DbType,
-		DbTag:           DbTag,
-		Expire:          Expire,
-		BkBase:          BkBase,
-		ScriptPath:      ScriptPath,
-		ScriptFile:      ScriptFile,
-		BkCmd:           BkCmd,
-		RunTime:         RunTime,
-		Comments:        Comments,
-		BackupDatabases: BackupDatabases,
-		ApiServer:       ApiServer,
-		Status:          Status,
-		TaskStatus:      TaskStatus,
-		Creator:         "DBA",
-		Updater:         "DBA",
+	sync := models.TDbSyncConfig{
+		ServerId:       ServerId,
+		SourDbId:       SourDbId,
+		DestDbId:       DestDbId,
+		SyncTag:        SyncTag,
+		SyncYwlx:       SyncYwlx,
+		SyncType:       SyncType,
+		ScriptPath:     ScriptPath,
+		ScriptFile:     ScriptFile,
+		RunTime:        RunTime,
+		Comments:       Comments,
+		SyncSchema:     SyncSchema,
+		SyncSchemaDest: SyncSchemaDest,
+		SyncTable:      SyncTable,
+		BatchSize:      BatchSize,
+		BatchSizeIncr:  BatchSizeIncr,
+		SyncGap:        SyncGap,
+		SyncColVal:     SyncColVal,
+		SyncColName:    SyncColName,
+		SyncTimeType:   SyncTimeType,
+		SyncRepairDay:  SyncRepairDay,
+		ApiServer:      ApiServer,
+		Status:         Status,
+		Creator:        "DBA",
+		Updater:        "DBA",
 	}
-	id, err := o.Insert(&backup)
+	id, err := o.Insert(&sync)
 	fmt.Println(id, err)
 	if err != nil {
-		c.ErrorJson("BackupController->Put", 500, err.Error(), nil)
+		c.ErrorJson("SyncController->Put", 500, err.Error(), nil)
 	} else {
-		c.SuccessJson("BackupController->Put", "id="+strconv.FormatInt(id, 10))
+		c.SuccessJson("SyncController->Put", "id="+strconv.FormatInt(id, 10))
 	}
 }
 
-//update backup
-func (c *BackupController) Post() {
+//update sync
+func (c *SyncController) Post() {
 	BackupId, _ := c.GetInt("id")
 	ServerId := c.GetString("server_id")
 	DbId := c.GetString("db_id")
@@ -164,7 +201,7 @@ func (c *BackupController) Post() {
 }
 
 //delete server
-func (c *BackupController) Delete() {
+func (c *SyncController) Delete() {
 	BackupId, _ := c.GetInt("id")
 	o := orm.NewOrm()
 	backup := models.TDbBackupConfig{Id: BackupId}
@@ -176,8 +213,8 @@ func (c *BackupController) Delete() {
 	}
 }
 
-//query backup by id
-func (c *BackupControllerByParId) Get() {
+//query sync by id
+func (c *SyncControllerByParId) Get() {
 	id := c.Ctx.Input.Param(":id")
 	int32, err := strconv.Atoi(id)
 	if err != nil {
@@ -194,11 +231,11 @@ func (c *BackupControllerByParId) Get() {
 	}
 }
 
-//get backup servers
-func (c *BackupServerController) Get() {
+//get sync servers
+func (c *SyncServerController) Get() {
 	o := orm.NewOrm()
 	var backups []orm.Params
-	st := fmt.Sprintf(`SELECT '' AS dmm,'请选择...'  AS dmmc UNION ALL SELECT CONCAT(id,'') AS id,server_desc FROM t_server WHERE server_type='1' ORDER BY dmm+0`)
+	st := fmt.Sprintf(`SELECT '' AS dmm,'请选择...'  AS dmmc UNION ALL SELECT CONCAT(id,'') AS id,server_desc FROM t_server WHERE server_type='2' ORDER BY dmm+0`)
 	fmt.Println(st)
 	_, err := o.Raw(st).Values(&backups)
 	if err == nil {
@@ -209,8 +246,8 @@ func (c *BackupServerController) Get() {
 	}
 }
 
-//query backup log
-func (c *BackupLogController) Get() {
+//query sync log
+func (c *SyncLogController) Get() {
 	dbTag := c.GetString("db_tag")
 	dbEnv := c.GetString("db_env")
 	dbType := c.GetString("db_type")
@@ -266,8 +303,8 @@ func (c *BackupLogController) Get() {
 
 }
 
-//query backup task
-func (c *BackupTaskController) Get() {
+//query sync task
+func (c *SyncTaskController) Get() {
 	dbEnv := c.GetString("db_env")
 	dbType := c.GetString("db_type")
 	vWhere := ""

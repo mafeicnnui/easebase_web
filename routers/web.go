@@ -56,6 +56,13 @@ func init() {
 	beego.Router("/backup/log", &controllers.BackupLogController{})
 	beego.Router("/backup/task", &controllers.BackupTaskController{})
 
+	//db sync
+	beego.Router("/sync", &controllers.SyncController{})
+	beego.Router("/sync/:id:int", &controllers.SyncControllerByParId{})
+	beego.Router("/sync/server", &controllers.SyncServerController{})
+	beego.Router("/sync/log", &controllers.SyncLogController{})
+	beego.Router("/sync/task", &controllers.SyncTaskController{})
+
 	// public api
 	beego.Router("/api/public/:flag", &controllers.PublicApiController{})
 
