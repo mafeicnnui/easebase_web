@@ -30,8 +30,8 @@ func init() {
 	orm.RegisterModel(new(TDbBackupDetail))
 	orm.RegisterModel(new(TDbSyncConfig))
 	orm.RegisterModel(new(TDbSyncTabConfig))
-	orm.RegisterModel(new(TDbSyncTasksLog))
-	orm.RegisterModel(new(TDbSyncTasksLogDetail))
+	orm.RegisterModel(new(TDbSyncTaskLog))
+	orm.RegisterModel(new(TDbSyncTaskLogDetail))
 
 	// create table
 	orm.RunSyncdb("default", false, true)

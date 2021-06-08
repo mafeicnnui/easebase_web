@@ -18,6 +18,10 @@ type BackupServerController struct {
 	BaseController
 }
 
+type BackupLogDetailController struct {
+	BaseController
+}
+
 type BackupLogController struct {
 	BaseController
 }
@@ -257,11 +261,51 @@ func (c *BackupLogController) Get() {
 				FROM  t_db_backup_config a,t_db_backup_total b,t_db_source c
 				WHERE a.db_tag=b.db_tag AND a.db_id=c.id  AND a.status='1' %s
 				 order by b.create_date,b.db_tag`, vWhere)
+	fmt.Println(st)
 	_, err := o.Raw(st).Values(&backups)
 	if err == nil {
 		c.SuccessJson("BackupLogController->Get", &backups)
 	} else {
 		c.ErrorJson("BackupLogController->Get", 500, err.Error(), nil)
+	}
+}
+
+//query backup log detail
+func (c *BackupLogDetailController) Get() {
+	dbTag := c.GetString("db_tag")
+	createDate := c.GetString("create_date")
+
+	vWhere := ""
+	if dbTag != "" {
+		st := fmt.Sprintf(` and a.db_tag='%s'`, dbTag)
+		vWhere = vWhere + st
+	}
+
+	if createDate != "" {
+		st := fmt.Sprintf(` and b.create_date>='%s' and b.create_date<=DATE_ADD('%s',INTERVAL 1 DAY) `, createDate, createDate)
+		vWhere = vWhere + st
+	}
+
+	o := orm.NewOrm()
+	var backups []orm.Params
+	st := fmt.Sprintf(
+		`SELECT 
+					a.comments,a.db_tag,b.db_name,b.file_name,b.bk_path,
+					CAST(b.create_date AS CHAR) as create_date,
+					CAST(b.start_time AS CHAR) as start_time,
+					CAST(b.end_time AS CHAR) as end_time,
+					b.db_size,b.elapsed_backup,b.elapsed_gzip,
+					CASE b.STATUS WHEN '1' THEN '<span style=''color: red''>失败</span>' WHEN '0' THEN '成功' END  status,
+					error
+				FROM  t_db_backup_config a,t_db_backup_detail b,t_db_source c
+				WHERE a.db_tag=b.db_tag and a.db_id=c.id and a.status='1' %s
+				  order by b.create_date,b.db_tag`, vWhere)
+	fmt.Println(st)
+	_, err := o.Raw(st).Values(&backups)
+	if err == nil {
+		c.SuccessJson("BackupLogDetailController->Get", &backups)
+	} else {
+		c.ErrorJson("BackupLogDetailController->Get", 500, err.Error(), nil)
 	}
 
 }

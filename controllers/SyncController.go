@@ -22,18 +22,23 @@ type SyncLogController struct {
 	BaseController
 }
 
+type SyncLogDetailController struct {
+	BaseController
+}
+
 type SyncTaskController struct {
 	BaseController
 }
 
 //query sync
 func (c *SyncController) Get() {
-	syncTag := c.GetString("sync_tag")
-	marketId := c.GetString("market_id")
-	syncYwlx := c.GetString("sync_ywlx")
-	syncType := c.GetString("sync_type")
+	syncTag := c.GetString("syncTag")
+	marketId := c.GetString("marketId")
+	syncYwlx := c.GetString("syncYwlx")
+	syncType := c.GetString("syncType")
 	status := c.GetString("status")
 
+	fmt.Println("syncTag=", syncTag)
 	vWhere := ""
 	if syncTag != "" {
 		st := fmt.Sprintf(` and instr(a.sync_tag,'%s')>0`, syncTag)
@@ -82,6 +87,7 @@ func (c *SyncController) Get() {
               AND c.dm='08' AND d.dm='09'
               AND a.sync_ywlx=c.dmm
               AND a.sync_type=d.dmm %s`, vWhere)
+	fmt.Println(st)
 	_, err := o.Raw(st).Values(&sync)
 	if err == nil {
 		c.SuccessJson("SyncController->Get", &sync)
@@ -93,9 +99,9 @@ func (c *SyncController) Get() {
 
 //insert sync
 func (c *SyncController) Put() {
-	ServerId, _ := c.GetInt("server_id")
-	SourDbId, _ := c.GetInt("sour_db_id")
-	DestDbId, _ := c.GetInt("dest_db_id")
+	ServerId := c.GetString("server_id")
+	SourDbId := c.GetString("sour_db_id")
+	DestDbId := c.GetString("dest_db_id")
 	SyncTag := c.GetString("sync_tag")
 	SyncYwlx := c.GetString("sync_ywlx")
 	SyncType := c.GetString("sync_type")
@@ -154,62 +160,76 @@ func (c *SyncController) Put() {
 
 //update sync
 func (c *SyncController) Post() {
-	BackupId, _ := c.GetInt("id")
+	SyncId, _ := c.GetInt("id")
 	ServerId := c.GetString("server_id")
-	DbId := c.GetString("db_id")
-	DbType := c.GetString("db_type")
-	DbTag := c.GetString("db_tag")
-	Expire, _ := c.GetInt("expire")
-	BkBase := c.GetString("bk_base")
+	SourDbId := c.GetString("sour_db_id")
+	DestDbId := c.GetString("dest_db_id")
+	SyncTag := c.GetString("sync_tag")
+	SyncYwlx := c.GetString("sync_ywlx")
+	SyncType := c.GetString("sync_type")
 	ScriptPath := c.GetString("script_path")
 	ScriptFile := c.GetString("script_file")
-	BkCmd := c.GetString("bk_cmd")
 	RunTime := c.GetString("run_time")
 	Comments := c.GetString("comments")
-	BackupDatabases := c.GetString("backup_databases")
+	SyncSchema := c.GetString("sync_schema")
+	SyncSchemaDest := c.GetString("sync_schema_dest")
+	SyncTable := c.GetString("sync_table")
+	BatchSize, _ := c.GetInt("batch_size")
+	BatchSizeIncr, _ := c.GetInt("batch_size_incr")
+	SyncGap, _ := c.GetInt("sync_gap")
+	SyncColVal := c.GetString("sync_col_val")
+	SyncColName := c.GetString("sync_col_name")
+	SyncTimeType := c.GetString("sync_time_type")
+	SyncRepairDay, _ := c.GetInt("sync_repair_day")
 	ApiServer := c.GetString("api_server")
 	Status := c.GetString("status")
-	TaskStatus := c.GetString("task_status")
 
 	o := orm.NewOrm()
-	backup := models.TDbBackupConfig{
-		Id:              BackupId,
-		ServerId:        ServerId,
-		DbId:            DbId,
-		DbType:          DbType,
-		DbTag:           DbTag,
-		Expire:          Expire,
-		BkBase:          BkBase,
-		ScriptPath:      ScriptPath,
-		ScriptFile:      ScriptFile,
-		BkCmd:           BkCmd,
-		RunTime:         RunTime,
-		Comments:        Comments,
-		BackupDatabases: BackupDatabases,
-		ApiServer:       ApiServer,
-		Status:          Status,
-		TaskStatus:      TaskStatus,
-		Creator:         "DBA",
-		Updater:         "DBA",
+	sync := models.TDbSyncConfig{
+		Id:             SyncId,
+		ServerId:       ServerId,
+		SourDbId:       SourDbId,
+		DestDbId:       DestDbId,
+		SyncTag:        SyncTag,
+		SyncYwlx:       SyncYwlx,
+		SyncType:       SyncType,
+		ScriptPath:     ScriptPath,
+		ScriptFile:     ScriptFile,
+		RunTime:        RunTime,
+		Comments:       Comments,
+		SyncSchema:     SyncSchema,
+		SyncSchemaDest: SyncSchemaDest,
+		SyncTable:      SyncTable,
+		BatchSize:      BatchSize,
+		BatchSizeIncr:  BatchSizeIncr,
+		SyncGap:        SyncGap,
+		SyncColVal:     SyncColVal,
+		SyncColName:    SyncColName,
+		SyncTimeType:   SyncTimeType,
+		SyncRepairDay:  SyncRepairDay,
+		ApiServer:      ApiServer,
+		Status:         Status,
+		Creator:        "DBA",
+		Updater:        "DBA",
 	}
-	_, err := o.Update(&backup)
+	_, err := o.Update(&sync)
 	if err != nil {
-		c.ErrorJson("更新备份元数据出错!", 500, err.Error(), nil)
+		c.ErrorJson("更新同步元数据出错!", 500, err.Error(), nil)
 	} else {
-		c.SuccessJson("备份元数据变更成功!", "")
+		c.SuccessJson("同步元数据变更成功!", "")
 	}
 }
 
 //delete server
 func (c *SyncController) Delete() {
-	BackupId, _ := c.GetInt("id")
+	SyncpId, _ := c.GetInt("id")
 	o := orm.NewOrm()
-	backup := models.TDbBackupConfig{Id: BackupId}
-	_, err := o.Delete(&backup)
+	sync := models.TDbSyncConfig{Id: SyncpId}
+	_, err := o.Delete(&sync)
 	if err != nil {
-		c.ErrorJson("BackupController->Delete", 500, err.Error(), nil)
+		c.ErrorJson("SyncController->Delete", 500, err.Error(), nil)
 	} else {
-		c.SuccessJson("BackupController->Delete", nil)
+		c.SuccessJson("SyncController->Delete", nil)
 	}
 }
 
@@ -218,16 +238,16 @@ func (c *SyncControllerByParId) Get() {
 	id := c.Ctx.Input.Param(":id")
 	int32, err := strconv.Atoi(id)
 	if err != nil {
-		c.ErrorJson("BackupControllerByParId->Get", 500, err.Error(), nil)
+		c.ErrorJson("SyncControllerByParId->Get", 500, err.Error(), nil)
 	}
 	o := orm.NewOrm()
-	backup := models.TDbBackupConfig{Id: int32}
-	err = o.Read(&backup)
+	sync := models.TDbSyncConfig{Id: int32}
+	err = o.Read(&sync)
 	if err != nil {
-		c.ErrorJson("BackupControllerByParId->Get", 500, err.Error(), nil)
+		c.ErrorJson("SyncControllerByParId->Get", 500, err.Error(), nil)
 
 	} else {
-		c.SuccessJson("BackupControllerByParId->Get", &backup)
+		c.SuccessJson("SyncControllerByParId->Get", &sync)
 	}
 }
 
@@ -248,23 +268,23 @@ func (c *SyncServerController) Get() {
 
 //query sync log
 func (c *SyncLogController) Get() {
-	dbTag := c.GetString("db_tag")
-	dbEnv := c.GetString("db_env")
-	dbType := c.GetString("db_type")
+	syncTag := c.GetString("sync_tag")
+	marketId := c.GetString("market_id")
+	syncYwlx := c.GetString("sync_ywlx")
 	beginDate := c.GetString("begin_date")
 	endDate := c.GetString("end_date")
 
 	vWhere := ""
-	if dbTag != "" {
-		st := fmt.Sprintf(` and (instr(a.db_tag,'%s')>0 or instr(a.comments,'%s')>0)`, dbTag, dbTag)
+	if syncTag != "" {
+		st := fmt.Sprintf(` and (instr(a.sync_tag,'%s')>0 or instr(a.comments,'%s')>0)`, syncTag, syncTag)
 		vWhere = vWhere + st
 	}
-	if dbEnv != "" {
-		st := fmt.Sprintf(` and c.db_env='%s'`, dbEnv)
+	if marketId != "" {
+		st := fmt.Sprintf(` and instr(a.sync_col_val,'%s')>0`, marketId)
 		vWhere = vWhere + st
 	}
-	if dbType != "" {
-		st := fmt.Sprintf(` and a.db_type='%s'`, dbType)
+	if syncYwlx != "" {
+		st := fmt.Sprintf(` and a.sync_ywlx='%s'`, syncYwlx)
 		vWhere = vWhere + st
 	}
 
@@ -279,58 +299,82 @@ func (c *SyncLogController) Get() {
 	}
 
 	o := orm.NewOrm()
-	var backups []orm.Params
+	var logs []orm.Params
 	st := fmt.Sprintf(
-		`SELECT  b.id, 
-                        a.comments, 
-                        b.db_tag,
-						cast(b.create_date as char) as create_date,
-						cast(b.start_time as char) as start_time,
-						cast(b.end_time as char) as end_time,
-						b.total_size,
-                        b.elapsed_backup, 
-                        b.elapsed_gzip,
-						CASE b.STATUS WHEN '1' THEN '<span style=''color: red''>失败</span>' WHEN '0' THEN '成功' END  status
-				FROM  t_db_backup_config a,t_db_backup_total b,t_db_source c
-				WHERE a.db_tag=b.db_tag AND a.db_id=c.id  AND a.status='1' %s
-				 order by b.create_date,b.db_tag`, vWhere)
-	_, err := o.Raw(st).Values(&backups)
+		`SELECT b.id,
+                    c.dmmc as market_name,
+                    a.comments,
+                    b.sync_tag,
+                    cast(b.create_date as char) as create_date,
+                    b.duration,
+                    b.amount
+            FROM  t_db_sync_config a,t_db_sync_task_log b,t_dmmx c
+            WHERE a.sync_tag=b.sync_tag 
+              and c.dm='05' 
+              and instr(a.sync_col_val,c.dmm)>0
+              and a.status='1'  %s`, vWhere)
+	fmt.Println(st)
+	_, err := o.Raw(st).Values(&logs)
 	if err == nil {
-		c.SuccessJson("BackupLogController->Get", &backups)
+		c.SuccessJson("BackupLogController->Get", &logs)
 	} else {
 		c.ErrorJson("BackupLogController->Get", 500, err.Error(), nil)
+	}
+}
+
+//query backup log detail
+func (c *SyncLogDetailController) Get() {
+	syncTag := c.GetString("sync_tag")
+	createDate := c.GetString("create_date")
+
+	vWhere := ""
+	if syncTag != "" {
+		st := fmt.Sprintf(` and a.sync_tag='%s'`, syncTag)
+		vWhere = vWhere + st
+	}
+
+	if createDate != "" {
+		st := fmt.Sprintf(` and b.create_date>='%s' and b.create_date<='%s'`, createDate[0:13], createDate)
+		vWhere = vWhere + st
+	}
+
+	o := orm.NewOrm()
+	var syncs []orm.Params
+	st := fmt.Sprintf(
+		`SELECT 
+					 a.comments,
+					 b.sync_tag,
+					 b.sync_table,
+					 CAST(b.create_date AS CHAR) as create_date, 
+					 b.amount,
+					 b.duration 
+                FROM  t_db_sync_config a,t_db_sync_task_log_detail b
+                WHERE  a.sync_tag=b.sync_tag 
+                   AND a.status='1' %s`, vWhere)
+	fmt.Println(st)
+	_, err := o.Raw(st).Values(&syncs)
+	if err == nil {
+		c.SuccessJson("BackupLogDetailController->Get", &syncs)
+	} else {
+		c.ErrorJson("BackupLogDetailController->Get", 500, err.Error(), nil)
 	}
 
 }
 
 //query sync task
 func (c *SyncTaskController) Get() {
-	dbEnv := c.GetString("db_env")
-	dbType := c.GetString("db_type")
-	vWhere := ""
-
-	if dbEnv != "" {
-		st := fmt.Sprintf(` and c.db_env='%s'`, dbEnv)
-		vWhere = vWhere + st
-	}
-	if dbType != "" {
-		st := fmt.Sprintf(` and a.db_type='%s'`, dbType)
-		vWhere = vWhere + st
-	}
-
+	marketId := c.GetString("market_id")
 	o := orm.NewOrm()
-	var backups []orm.Params
+	var sync []orm.Params
 	st := fmt.Sprintf(
-		`SELECT a.db_tag as dmm,a.comments as dmmc
-				 FROM t_db_backup_config a ,t_server b,t_db_source c
-				   WHERE a.STATUS=1 AND a.server_id=b.id AND a.db_id=c.id
-				    %s  ORDER BY c.db_type,a.db_id`, vWhere)
-	_, err := o.Raw(st).Values(&backups)
+		`SELECT sync_tag as dmm,comments as dmmc
+                   FROM t_db_sync_config  
+                    WHERE STATUS=1  and INSTR(sync_col_val,'%s')>0  ORDER BY sync_col_val,comments`, marketId)
+	_, err := o.Raw(st).Values(&sync)
 	if err == nil {
-		fmt.Println("backup=", &backups)
-		c.SuccessJson("BackupTaskController->Get", &backups)
+		fmt.Println("sync=", &sync)
+		c.SuccessJson("SyncTaskController->Get", &sync)
 	} else {
-		c.ErrorJson("BackupTaskController->Get", 500, err.Error(), nil)
+		c.ErrorJson("SyncTaskController->Get", 500, err.Error(), nil)
 	}
-
 }

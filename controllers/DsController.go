@@ -197,14 +197,15 @@ func (c *DsControllerByParId) Get() {
 }
 
 //get ds server
+// (db_type IN(0)  AND USER IN('puppet','easylife','apptong') OR db_type NOT IN (0)) AND
+
 func (c *DsServerController) Get() {
 	o := orm.NewOrm()
 	var dbServers []orm.Params
 	st := fmt.Sprintf(`SELECT '' AS dmm,'请选择...'  AS dmmc 
 						  	  union all
-						   	  SELECT id,db_desc FROM t_db_source 
-							   WHERE  (db_type IN(0)  AND USER IN('puppet','easylife','apptong') OR db_type NOT IN (0))
-							    AND STATUS=1 ORDER BY dmm+0`)
+						   	  SELECT CONCAT(id,'') AS id,db_desc FROM t_db_source 
+							   WHERE  STATUS=1 ORDER BY dmm+0`)
 	fmt.Println(st)
 	_, err := o.Raw(st).Values(&dbServers)
 	if err == nil {
