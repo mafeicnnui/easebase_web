@@ -17,6 +17,11 @@ type Backup struct {
 	CreateDate string
 }
 
+type ReturnMsg struct {
+	Code int
+	Msg  string
+}
+
 func reverseString(s string) string {
 	runes := []rune(s)
 	for from, to := 0, len(runes)-1; from < to; from, to = from+1, to-1 {
@@ -25,7 +30,7 @@ func reverseString(s string) string {
 	return string(runes)
 }
 
-func CheckTabExists(pTab string, pWhere string) int {
+func CheckTabDataExists(pTab string, pWhere string) int {
 	o := orm.NewOrm()
 	var res []orm.Params
 	st := fmt.Sprintf(`select count(0) as rec from %s  %s`, pTab, pWhere)

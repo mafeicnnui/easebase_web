@@ -70,5 +70,6 @@ func init() {
 
 	// agent api
 	beego.Router("/api/backup/:flag/:tag", &controllers.BackupApiController{})
+	beego.Router("/api/sync/:flag/:tag", &controllers.SyncApiController{})
 
 }
