@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-type ReturnMsg struct {
-	Code int
-	Msg  string
-}
-
 //检测备份服务器状态
 func CheckBackupServerStatus(dbTag string) int {
 	o := orm.NewOrm()
@@ -108,7 +103,7 @@ func SaveBackupTotal(cfg map[string]string) ReturnMsg {
 	// check tab exists
 	vv := fmt.Sprintf(` where db_tag='%s' and create_date='%s'`, cfg["db_tag"], cfg["create_date"])
 	o := orm.NewOrm()
-	if CheckTabExists("t_db_backup_total", vv) == 0 {
+	if CheckTabDataExists("t_db_backup_total", vv) == 0 {
 		total := models.TDbBackupTotal{
 			DbTag:         cfg["db_tag"],
 			BkBase:        cfg["bk_base"],
@@ -173,7 +168,7 @@ func SaveBackupDetail(cfg map[string]string) ReturnMsg {
 	// check tab exists
 	vv := fmt.Sprintf(` where db_tag='%s' and db_name='%s' and create_date='%s'`, cfg["db_tag"], cfg["db_name"], cfg["create_date"])
 	o := orm.NewOrm()
-	if CheckTabExists("t_db_backup_detail", vv) == 0 {
+	if CheckTabDataExists("t_db_backup_detail", vv) == 0 {
 		detail := models.TDbBackupDetail{
 			DbTag:         cfg["db_tag"],
 			DbName:        cfg["db_name"],

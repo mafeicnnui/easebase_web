@@ -330,6 +330,7 @@ func main() {
 	var cfg map[string]interface{}
 
 	//命令行获取tag参数
+	//-db_tag=mysql_10_2_39_40_3306 -api_server=10.16.47.114:9000
 	api := flag.String("api_server", "", "接口服务地址,格式：IP:PORT")
 	tag := flag.String("db_tag", "", "数据备份标识")
 	show := flag.Bool("config", false, "是否显示配置信息")
