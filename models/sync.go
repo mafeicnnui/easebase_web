@@ -57,8 +57,8 @@ type TDbSyncTabConfig struct {
 type TDbSyncTaskLog struct {
 	Id         int
 	SyncTag    string    `orm:"size(100);description(同步标识)"`
-	Duration   int       `orm:"description(同步时长(s))"`
-	Amount     int       `orm:"description(同步数量)"`
+	Duration   string    `orm:"size(20);description(同步时长(s)"`
+	Amount     string    `orm:"size(20);description(同步数量)"`
 	Creator    string    `orm:"size(10)"`
 	CreateDate time.Time `orm:"type(datetime);description(创建时间)"`
 }
@@ -67,8 +67,8 @@ type TDbSyncTaskLogDetail struct {
 	Id         int
 	SyncTag    string    `orm:"size(100);description(同步标识)"`
 	SyncTable  string    `orm:"size(100);description(同步表)"`
-	Duration   int       `orm:"description(同步时长(s))"`
-	Amount     int       `orm:"description(同步数量)"`
+	Duration   string    `orm:"size(20);description(同步时长(s)"`
+	Amount     string    `orm:"size(20);description(同步数量)"`
 	Creator    string    `orm:"size(10)"`
 	CreateDate time.Time `orm:"type(datetime);description(创建时间)"`
 }
