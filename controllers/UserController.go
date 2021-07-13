@@ -16,6 +16,7 @@ type UserController struct {
 //query user
 func (c *UserController) Get() {
 	name := c.GetString("name")
+	//fmt.Println("auth=",c.Ctx.Request.Header["Authorization"][0])
 	o := orm.NewOrm()
 	var users []orm.Params
 	st := fmt.Sprintf(

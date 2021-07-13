@@ -21,6 +21,56 @@ type result struct {
 	Data []map[string]interface{} `json:"Data"`
 }
 
+//测试函数
+func Test() {
+	//测试
+	fmt.Println(strings.Repeat("-", 120))
+	for _, v := range GetSourDatabases("dbo_summary_day") {
+		fmt.Println(fmt.Sprintf(`%-40s%-40s`, v["table_schema"], v["table_name"]))
+	}
+}
+
+//初始化源数据库
+func InitSourDB(cfg map[string]interface{}) {
+	apiServer := cfg["api_server"].(string)
+	dbSlice := strings.Split(cfg["sync_db_sour"].(string), ":")
+	dbIp := dbSlice[0]
+	dbPort := dbSlice[1]
+	dbService := dbSlice[2]
+	dbUser := dbSlice[3]
+	dbPass := dbSlice[4]
+	dbNewPass := GetPassword(apiServer, dbUser, dbPass)
+	cfg["db_sour_ip"] = dbIp
+	cfg["db_sour_port"] = dbPort
+	cfg["db_sour_service"] = dbService
+	cfg["db_sour_user"] = dbUser
+	cfg["db_sour_password"] = dbNewPass
+	cfg["db_sour_string"] = dbIp + ":" + dbPort + "/" + dbService
+	ds := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8", dbUser, dbNewPass, dbIp, dbPort, dbService)
+	orm.RegisterDataBase("sourceDB", "mysql", ds)
+}
+
+//初始化目标数据库
+func InitTargetDB(cfg map[string]interface{}) {
+	apiServer := cfg["api_server"].(string)
+	dbSlice := strings.Split(cfg["sync_db_dest"].(string), ":")
+	dbIp := dbSlice[0]
+	dbPort := dbSlice[1]
+	dbService := dbSlice[2]
+	dbUser := dbSlice[3]
+	dbPass := dbSlice[4]
+	dbNewPass := GetPassword(apiServer, dbUser, dbPass)
+	cfg["db_dest_ip"] = dbIp
+	cfg["db_dest_port"] = dbPort
+	cfg["db_dest_service"] = dbService
+	cfg["db_dest_user"] = dbUser
+	cfg["db_dest_password"] = dbNewPass
+	cfg["db_dest_string"] = dbIp + ":" + dbPort + "/" + dbService
+
+	ds := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8", dbUser, dbNewPass, dbIp, dbPort, dbService)
+	orm.RegisterDataBase("targetDB", "mysql", ds)
+}
+
 /*
    功能：获取当前时间字符串，格式:YYYY-MM-DD HH24:MI:SS
    入口:无
@@ -117,7 +167,6 @@ func ShowConfig(cfg map[string]interface{}) {
 	fmt.Println(strings.Repeat("-", 140))
 	fmt.Println(fmt.Sprintf(`%-20s%-120s`, "配置项", "配置值"))
 	fmt.Println(strings.Repeat("-", 140))
-
 	var keys []string
 	for k := range cfg {
 		keys = append(keys, k)
@@ -126,6 +175,7 @@ func ShowConfig(cfg map[string]interface{}) {
 	for _, k := range keys {
 		fmt.Println(fmt.Sprintf(`%-20s  =  %-120s`, k, cfg[k]))
 	}
+	fmt.Println(strings.Repeat("-", 140))
 }
 
 /*
@@ -133,8 +183,8 @@ func ShowConfig(cfg map[string]interface{}) {
    入口:表名
    出口:1 存在 ,0 不存在
 */
-func CheckTabExists(pTab string) int {
-	o := orm.NewOrmUsingDB("sourceDB")
+func CheckTabExists(pDs, pTab string) int {
+	o := orm.NewOrmUsingDB(pDs)
 	var res []orm.Params
 	st := fmt.Sprintf(
 		`SELECT count(0) as rec
@@ -156,8 +206,8 @@ func CheckTabExists(pTab string) int {
    入口:表名
    出口:1 存在 ,0 不存在
 */
-func CheckTabPkExists(pTab string) int {
-	o := orm.NewOrmUsingDB("sourceDB")
+func CheckTabPkExists(pDs string, pTab string) int {
+	o := orm.NewOrmUsingDB(pDs)
 	var res []orm.Params
 	st := fmt.Sprintf(
 		`select count(0) as rec from information_schema.columns
@@ -169,6 +219,26 @@ func CheckTabPkExists(pTab string) int {
 	val, err2 := strconv.Atoi(res[0]["rec"].(string))
 	if err2 != nil {
 		panic("Func CheckTabPkExists Error:" + err2.Error())
+	}
+	return val
+}
+
+/*
+   功能：检测表是否存在主数据
+   入口:表名
+   出口:1 存在 ,0 不存在
+*/
+func CheckTabDataExists(pDs string, pTab string) int {
+	o := orm.NewOrmUsingDB(pDs)
+	var res []orm.Params
+	st := fmt.Sprintf(`select count(0) as rec from %s limit 1`, pTab)
+	_, err1 := o.Raw(st).Values(&res)
+	if err1 != nil {
+		panic("Func CheckTabDataExists Error:" + err1.Error())
+	}
+	val, err2 := strconv.Atoi(res[0]["rec"].(string))
+	if err2 != nil {
+		panic("Func CheckTabDataExists Error:" + err2.Error())
 	}
 	return val
 }
@@ -219,44 +289,69 @@ func GetSourDatabases(tabName string) []orm.Params {
 	return rs
 }
 
-func InitSourDB(cfg map[string]interface{}) {
-	apiServer := cfg["api_server"].(string)
-	dbSlice := strings.Split(cfg["sync_db_sour"].(string), ":")
-	dbIp := dbSlice[0]
-	dbPort := dbSlice[1]
-	dbService := dbSlice[2]
-	dbUser := dbSlice[3]
-	dbPass := dbSlice[4]
-	dbNewPass := GetPassword(apiServer, dbUser, dbPass)
-
-	cfg["db_sour_ip"] = dbIp
-	cfg["db_sour_port"] = dbPort
-	cfg["db_sour_service"] = dbService
-	cfg["db_sour_user"] = dbUser
-	cfg["db_sour_password"] = dbNewPass
-	cfg["db_sour_string"] = dbIp + ":" + dbPort + "/" + dbService
-
-	ds := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8", dbUser, dbNewPass, dbIp, dbPort, dbService)
-	orm.RegisterDataBase("sourceDB", "mysql", ds)
+/*
+   功能：创建表
+   入口:表名,创建语句
+   出口:无
+*/
+func CreateTable(pDs string, tName string, sql string) {
+	o := orm.NewOrmUsingDB(pDs)
+	var rs []orm.Params
+	_, err := o.Raw(sql).Values(&rs)
+	if err != nil {
+		panic(err.Error())
+	} else {
+		fmt.Println(fmt.Sprintf(`Table: %s createed`, tName))
+	}
 }
 
-func InitTargetDB(cfg map[string]interface{}) {
-	apiServer := cfg["api_server"].(string)
-	dbSlice := strings.Split(cfg["sync_db_dest"].(string), ":")
-	dbIp := dbSlice[0]
-	dbPort := dbSlice[1]
-	dbService := dbSlice[2]
-	dbUser := dbSlice[3]
-	dbPass := dbSlice[4]
-	dbNewPass := GetPassword(apiServer, dbUser, dbPass)
+/*
+   功能：执行SQL获取结果集
+   入口:表名,创建语句
+   出口:无
+*/
+func ExecSQL(pDs string, sql string) []orm.Params {
+	o := orm.NewOrmUsingDB(pDs)
+	var rs []orm.Params
+	_, err := o.Raw(sql).Values(&rs)
+	if err != nil {
+		panic(err.Error())
+	}
+	return rs
+}
 
-	cfg["db_dest_ip"] = dbIp
-	cfg["db_dest_port"] = dbPort
-	cfg["db_dest_service"] = dbService
-	cfg["db_dest_user"] = dbUser
-	cfg["db_dest_password"] = dbNewPass
-	cfg["db_dest_string"] = dbIp + ":" + dbPort + "/" + dbService
+func GetTabHeader(pDs string, pTab string) string {
+	o := orm.NewOrmUsingDB(pDs)
+	var rs []orm.Params
+	st := fmt.Sprintf(`select group_concat(concat('[[',column_name,']]')) AS column_name 
+                               from information_schema.columns 
+                                where table_schema=database() and table_name='%s' 
+                                 order by ordinal_position`, pTab)
+	_, err := o.Raw(st).Values(&rs)
+	if err != nil {
+		panic(err.Error())
+	}
+	cols := rs[0]["column_name"].(string)
+	cols = strings.Replace(cols, "[[", "`", -1)
+	cols = strings.Replace(cols, "]]", "`", -1)
+	cols = fmt.Sprintf("insert into %s(%s)", pTab, cols)
+	//fmt.Println("cols=",cols)
+	return cols
+}
 
-	ds := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8", dbUser, dbNewPass, dbIp, dbPort, dbService)
-	orm.RegisterDataBase("targetDB", "mysql", ds)
+func GetSyncCols(pDs string, pTab string) string {
+	o := orm.NewOrmUsingDB(pDs)
+	var rs []orm.Params
+	st := fmt.Sprintf(`select group_concat(concat('[[',column_name,']]')) AS column_name 
+                               from information_schema.columns 
+                                where table_schema=database() and table_name='%s' 
+                                 order by ordinal_position`, pTab)
+	_, err := o.Raw(st).Values(&rs)
+	if err != nil {
+		panic(err.Error())
+	}
+	cols := rs[0]["column_name"].(string)
+	cols = strings.Replace(cols, "[[", "`", -1)
+	cols = strings.Replace(cols, "]]", "`", -1)
+	return cols
 }

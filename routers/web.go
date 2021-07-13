@@ -25,6 +25,8 @@ func init() {
 	beego.Router("/tree", &controllers.TreeController{})
 	beego.Router("/tree2", &controllers.TreeController2{})
 	beego.Router("/dm", &controllers.DmController{})
+	beego.Router("/login", &controllers.LoginController{})
+
 	//user
 	beego.Router("/user", &controllers.UserController{})
 	beego.Router("/user/:id:int", &controllers.UserControllerByParId{})

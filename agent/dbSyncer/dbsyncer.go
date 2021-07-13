@@ -22,21 +22,47 @@ func syncDDL(cfg map[string]interface{}) {
 		//colName := strings.Split(tab,":")[1]
 		//syncTime:= strings.Split(tab,":")[2]
 
-		//检查表是否存在
-		if utils.CheckTabExists(tabName) == 0 {
-			panic(fmt.Sprintf(`Table:%s not exists`, tabName))
+		//检查源表是否存在
+		if utils.CheckTabExists("sourceDB", tabName) == 0 {
+			panic(fmt.Sprintf(`DB: %s , Table:'%s' not exists!`, cfg["db_sour_service"], tabName))
 		}
 
-		//检查表是否有主键
-		if utils.CheckTabPkExists(tabName) == 0 {
-			panic(fmt.Sprintf(`Table:%s not exists primary key`, tabName))
+		//检查源表是否有主键
+		if utils.CheckTabPkExists("sourceDB", tabName) == 0 {
+			panic(fmt.Sprintf(`DB: %s ,Table '%s' not exists primary key!`, cfg["db_sour_service"], tabName))
 		}
 
-		//获取表定义
-		st := utils.GetTabDef(tabName)
-		fmt.Println(st)
+		//检查目标表是否存在
+		if utils.CheckTabExists("targetDB", tabName) > 0 {
+			fmt.Println(fmt.Sprintf(`DB: %s ,Table:'%s' already exists,skip create table!`, cfg["db_dest_service"], tabName))
+		} else {
+			//获取表定义
+			st := utils.GetTabDef(tabName)
 
-		//目标库建表
+			//目标库建表
+			utils.CreateTable("targetDB", tabName, st)
+
+		}
+
+		//全量同步表
+		if utils.CheckTabExists("targetDB", tabName) > 0 && utils.CheckTabDataExists("targetDB", tabName) == 0 {
+			fmt.Println(fmt.Sprintf(`DB: %s , Table:'%s' starting full sync...`, cfg["db_dest_service"], tabName))
+
+			header := utils.GetTabHeader("sourceDB", tabName)
+			cols := utils.GetSyncCols("sourceDB", tabName)
+			fmt.Println("header=", header)
+			fmt.Println("cols=", cols)
+			//mysql :=utils.MySQLExt{Config: cfg, Alias: "test"}
+			//mysql.InitDB()
+			//mysql.Exec("select now() as rq")
+
+			//目标库
+			//utils.ExecSQL("targetDB",fmt.Sprintf(`delete from  %s`,tabName))
+
+			//获取表所有数据
+			utils.ExecSQL("sourceDB", fmt.Sprintf(`select %s from %s`, "", tabName))
+
+		}
 
 	}
 }
@@ -57,7 +83,6 @@ func main() {
 	res := utils.GetConfig(*api, *tag)
 	if res.Code == 200 {
 		cfg = res.Data[0]
-
 	} else {
 		panic(res.Msg)
 	}
@@ -68,12 +93,6 @@ func main() {
 	//输出配置
 	if *show {
 		utils.ShowConfig(cfg)
-	}
-
-	//测试
-	fmt.Println(strings.Repeat("-", 120))
-	for _, v := range utils.GetSourDatabases("") {
-		fmt.Println(fmt.Sprintf(`%-80s`, v["schema_name"]))
 	}
 
 	//同步DDL
