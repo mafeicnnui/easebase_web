@@ -8,7 +8,7 @@ import (
 
 const (
 	KEY                    string = "JWT-ARY-STARK"
-	DEFAULT_EXPIRE_SECONDS int    = 10 // default 10 minutes
+	DEFAULT_EXPIRE_SECONDS int    = 6000 // default 10 minutes
 
 )
 
@@ -50,12 +50,6 @@ func GenerateToken(expiredSeconds int) (tokenString string, err error) {
 	//}
 	return tokenStr, err
 
-}
-
-// return this result to client then all later request should have header "Authorization: Bearer <token> "
-func getHeaderTokenValue(tokenString string) string {
-	//Authorization: Bearer <token>
-	return fmt.Sprintf("Bearer %s", tokenString)
 }
 
 // update expireAt and return a new token
