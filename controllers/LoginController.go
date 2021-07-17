@@ -22,7 +22,7 @@ func (c *LoginController) Post() {
 	 4.检测用户是否禁用
 	*/
 
-	token, err := utils.GenerateToken(60)
+	token, err := utils.GenerateToken(5)
 	if err == nil {
 		c.SuccessJson("DmController->Get", token)
 	} else {

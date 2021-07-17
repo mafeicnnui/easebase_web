@@ -55,3 +55,7 @@
         chmod +x dbbackup
         ./dbbackup mysql_10_2_39_40_3306
    
+    3、开发环境初始化
+    
+        go env -w GOPROXY=https://goproxy.cn
+        go list -m -u all
