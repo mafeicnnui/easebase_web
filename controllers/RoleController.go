@@ -92,14 +92,19 @@ func (c *RoleController) Post() {
 		c.ErrorJson("更新角色信息出错!", 500, err.Error(), nil)
 	} else {
 		//删除角色权限信息
-		rolePrivilege := models.TRolePrivs{RoleId: roleId}
-		_, err = o.Delete(&rolePrivilege)
+		o := orm.NewOrm()
+		var dmm []orm.Params
+		st := fmt.Sprintf("delete from t_role_privs where role_id='%s'", strconv.Itoa(roleId))
+		_, err := o.Raw(st).Values(&dmm)
 		if err != nil {
 			c.ErrorJson("删除角色权限出错!", 500, err.Error(), nil)
+		} else {
+			fmt.Println("delete rolePrivilege ok!")
 		}
 		//插入变更后角色权限
 		for _, privilegeId := range rolePrivileges {
-			rolePrivilege = models.TRolePrivs{
+			fmt.Println("insert rolePrivilege :", privilegeId)
+			rolePrivilege := models.TRolePrivs{
 				RoleId: roleId,
 				PrivId: privilegeId,
 			}
@@ -173,5 +178,25 @@ func (c *RolePrivilegesControllerByParId) Get() {
 
 	} else {
 		c.SuccessJson("RolePrivilegesControllerByParId->Get", &roleQx)
+	}
+}
+
+//功能：获取系统角色
+
+type SysRoleController struct {
+	BaseController
+}
+
+func (c *SysRoleController) Get() {
+	o := orm.NewOrm()
+	var sysRole []orm.Params
+	st := "select id as value ,name as label from t_role order by value"
+	_, err := o.Raw(st).Values(&sysRole)
+	fmt.Println("SySRoleController=", sysRole)
+	if err != nil {
+		c.ErrorJson("SysRoleController->Get", 500, err.Error(), nil)
+
+	} else {
+		c.SuccessJson("SysRoleController->Get", &sysRole)
 	}
 }

@@ -19,3 +19,29 @@ func GetUserRoleIDByUserID(userId int) []string {
 	}
 	return roleId
 }
+
+func GetUserByUserID(userId string) (orm.Params, error) {
+	o := orm.NewOrm()
+	var user []orm.Params
+	st := fmt.Sprintf("SELECT * from t_user where id=%s", userId)
+	_, err := o.Raw(st).Values(&user)
+	fmt.Println("GetUserByUserID=", user)
+	if err != nil {
+		return nil, err
+	} else {
+		return user[0], err
+	}
+}
+
+func GetUserByUserName(loginName string) (orm.Params, error) {
+	o := orm.NewOrm()
+	var user []orm.Params
+	st := fmt.Sprintf("SELECT * from t_user where login_name='%s'", loginName)
+	_, err := o.Raw(st).Values(&user)
+	fmt.Println("GetUserByUserName=", user)
+	if err != nil {
+		return nil, err
+	} else {
+		return user[0], err
+	}
+}

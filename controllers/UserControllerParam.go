@@ -93,16 +93,16 @@ type UserRoleControllerByParId struct {
 //query userRole
 func (c *UserRoleControllerByParId) Get() {
 	id := c.Ctx.Input.Param(":userId")
-	userId, err := strconv.Atoi(id)
-	var roles []*models.TUserRole
-	orm := orm.NewOrm()
-	qs := orm.QueryTable("t_user_role")
-	_, err = qs.Filter("user_id", userId).All(&roles) // 过滤器
+	o := orm.NewOrm()
+	var userRole []orm.Params
+	st := fmt.Sprintf("select role_id from t_user_role where user_id='%s' order by role_id", id)
+	_, err := o.Raw(st).Values(&userRole)
+	fmt.Println("UserRoleControllerByParId=", &userRole)
 	if err != nil {
 		c.ErrorJson("UserControllerByParId->Get", 500, err.Error(), nil)
 
 	} else {
-		c.SuccessJson("UserControllerByParId->Get", &roles)
+		c.SuccessJson("UserControllerByParId->Get", &userRole)
 	}
 }
 
