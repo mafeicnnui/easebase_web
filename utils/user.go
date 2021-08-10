@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/beego/beego/v2/client/orm"
+	"strconv"
 )
 
 func GetUserRoleIDByUserID(userId int) []string {
@@ -33,15 +34,48 @@ func GetUserByUserID(userId string) (orm.Params, error) {
 	}
 }
 
+func CheckUserExists(loginName string) int {
+	o := orm.NewOrm()
+	var user []orm.Params
+	st := fmt.Sprintf("SELECT count(0) as num from t_user where login_name='%s'", loginName)
+	o.Raw(st).Values(&user)
+	fmt.Println("CheckUserExists=", user[0], user[0]["num"])
+	//return user[0]["num"].(int)
+	num, _ := strconv.Atoi(user[0]["num"].(string))
+	return num
+}
+
 func GetUserByUserName(loginName string) (orm.Params, error) {
 	o := orm.NewOrm()
 	var user []orm.Params
 	st := fmt.Sprintf("SELECT * from t_user where login_name='%s'", loginName)
 	_, err := o.Raw(st).Values(&user)
-	fmt.Println("GetUserByUserName=", user)
+	fmt.Println("GetUserByUserName=", user, err)
 	if err != nil {
 		return nil, err
 	} else {
 		return user[0], err
 	}
+}
+
+func CheckUserExpire(loginName string) int {
+	o := orm.NewOrm()
+	var user []orm.Params
+	st := fmt.Sprintf("SELECT count(0) as num from t_user where login_name='%s' ", loginName)
+	o.Raw(st).Values(&user)
+	fmt.Println("CheckUserExists=", user[0], user[0]["num"])
+	//return user[0]["num"].(int)
+	num, _ := strconv.Atoi(user[0]["num"].(string))
+	return num
+}
+
+func CheckUserValid(loginName string) int {
+	o := orm.NewOrm()
+	var user []orm.Params
+	st := fmt.Sprintf("SELECT count(0) as num from t_user where login_name='%s'", loginName)
+	o.Raw(st).Values(&user)
+	fmt.Println("CheckUserExists=", user[0], user[0]["num"])
+	//return user[0]["num"].(int)
+	num, _ := strconv.Atoi(user[0]["num"].(string))
+	return num
 }

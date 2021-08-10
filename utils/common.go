@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Backup struct {
@@ -22,6 +23,10 @@ type ReturnMsg struct {
 	Msg  string
 }
 
+func GetDate() string {
+	return time.Now().Format("2006-01-02 03:04:05")[0:10]
+}
+
 func reverseString(s string) string {
 	runes := []rune(s)
 	for from, to := 0, len(runes)-1; from < to; from, to = from+1, to-1 {
@@ -30,6 +35,7 @@ func reverseString(s string) string {
 	return string(runes)
 }
 
+//加密
 func CheckTabDataExists(pTab string, pWhere string) int {
 	o := orm.NewOrm()
 	var res []orm.Params
@@ -46,12 +52,22 @@ func CheckTabDataExists(pTab string, pWhere string) int {
 	return val
 }
 
-func Decrypt(pPassword string, pKey string) ([]orm.Params, error) {
+//解密
+func Decrypt(pPassword string, pKey string) (string, error) {
 	o := orm.NewOrm()
 	var res []orm.Params
 	st := fmt.Sprintf(`select aes_decrypt(unhex('%s'),'%s') as password`, pPassword, reverseString(pKey))
 	_, err := o.Raw(st).Values(&res)
-	return res, err
+	return res[0]["password"].(string), err
+}
+
+//加密
+func Encrypt(pPassword string, pKey string) (string, error) {
+	o := orm.NewOrm()
+	var res []orm.Params
+	st := fmt.Sprintf(`select hex(aes_encrypt('%s','%s')) as password`, pPassword, reverseString(pKey))
+	_, err := o.Raw(st).Values(&res)
+	return res[0]["password"].(string), err
 }
 
 func PostFormMultiParam(Url string) {

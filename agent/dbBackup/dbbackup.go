@@ -96,8 +96,9 @@ func getDatabases(pdb string) []orm.Params {
 }
 
 func GetPassword(cfg map[string]interface{}) string {
-	var res result
-	url := fmt.Sprintf(`http://%s/api/public/decode`, cfg["api_server"])
+	//var res result
+	var res string
+	url := fmt.Sprintf(`http://%s/api/public/decrypt`, cfg["api_server"])
 	tag := map[string]interface{}{
 		"key":      cfg["db_user"],
 		"password": cfg["db_pass"],
@@ -108,8 +109,10 @@ func GetPassword(cfg map[string]interface{}) string {
 	client := &http.Client{}
 	resp, _ := client.Do(req)
 	body, _ := ioutil.ReadAll(resp.Body)
-	_ = json.Unmarshal(body, &res)
-	return res.Data[0]["password"].(string)
+	//_ = json.Unmarshal(body, &res)
+	_ = json.Unmarshal(body, res)
+	//return res.Data["password"].(string)
+	return res
 }
 
 func GetFIleContents(filename string) string {

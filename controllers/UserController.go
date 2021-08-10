@@ -36,7 +36,7 @@ func (c *UserController) Get() {
 					  CASE a.status WHEN '1' THEN '启用' WHEN '0' THEN '禁用' END AS Status
 				FROM t_user a,t_dmmx b ,t_dmmx c
 				 WHERE b.dm = '01' AND c.dm ='04' AND  a.dept_no = b.dmm 	AND  a.gender = c.dmm
-					AND  instr(a.name,'%s')>0  ORDER BY a.create_date`, name)
+					AND ( instr(a.login_name,'%s')>0  or  instr(a.name,'%s')>0 )  ORDER BY a.create_date`, name, name)
 
 	_, err := o.Raw(st).Values(&users)
 	if err == nil {
@@ -51,6 +51,7 @@ func (c *UserController) Get() {
 func (c *UserController) Put() {
 	template := "2006-01-02"
 	name := c.GetString("name")
+	loginName := c.GetString("login_name")
 	empNo := c.GetString("emp_no")
 	gender := c.GetString("gender")
 	email := c.GetString("email")
@@ -60,8 +61,12 @@ func (c *UserController) Put() {
 	fmt.Println("expireDate1:", expireDate)
 	fmt.Println("expireDate2:", DExpireDate)
 	password := c.GetString("password")
+	//生成加密后密码
+	password2, err2 := utils.Encrypt(password, loginName)
+	if err2 != nil {
+		c.ErrorJson("LoginController->Post", 500, "加密口令出错!", nil)
+	}
 	status := c.GetString("status")
-	loginName := c.GetString("login_name")
 	phone := c.GetString("phone")
 	userRoles := make([]int, 0, 10)
 	c.Ctx.Input.Bind(&userRoles, "user_role")
@@ -76,7 +81,7 @@ func (c *UserController) Put() {
 		Phone:      phone,
 		DeptNo:     deptNo,
 		ExpireDate: DExpireDate,
-		Password:   password,
+		Password:   password2,
 		Status:     status,
 		LoginName:  loginName,
 		Creator:    "DBA",
@@ -106,6 +111,7 @@ func (c *UserController) Post() {
 	userId, _ := c.GetInt("id")
 	template := "2006-01-02"
 	name := c.GetString("name")
+	loginName := c.GetString("login_name")
 	empNo := c.GetString("emp_no")
 	gender := c.GetString("gender")
 	email := c.GetString("email")
@@ -115,8 +121,14 @@ func (c *UserController) Post() {
 	fmt.Println("expireDate1:", expireDate)
 	fmt.Println("expireDate2:", DExpireDate)
 	password := c.GetString("password")
+	//生成加密后密码
+	password2, err2 := utils.Encrypt(password, loginName)
+	if err2 != nil {
+		c.ErrorJson("LoginController->Post", 500, "加密口令出错!", nil)
+	}
+
 	status := c.GetString("status")
-	loginName := c.GetString("login_name")
+
 	phone := c.GetString("phone")
 	userRoles := make([]int, 0, 3)
 	c.Ctx.Input.Bind(&userRoles, "user_role")
@@ -132,7 +144,7 @@ func (c *UserController) Post() {
 		Phone:      phone,
 		DeptNo:     deptNo,
 		ExpireDate: DExpireDate,
-		Password:   password,
+		Password:   password2,
 		Status:     status,
 		LoginName:  loginName,
 		Creator:    "DBA",
