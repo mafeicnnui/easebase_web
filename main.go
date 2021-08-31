@@ -13,8 +13,7 @@ func main() {
 
 	var FilterToken = func(ctx *context.Context) {
 		logs.Info("current router path is ", ctx.Request.RequestURI, strings.Split(ctx.Request.RequestURI, "?")[0])
-
-		if strings.Split(ctx.Request.RequestURI, "?")[0] != "/login" && ctx.Input.Header("Authorization") == "" {
+		if strings.Split(ctx.Request.RequestURI, "?")[0] != "/login" && ctx.Input.Header("Authorization") == "" && strings.Split(ctx.Request.RequestURI, "?")[0][0:4] != "/api" {
 			logs.Error("无权访问(token is nil) !")
 			ctx.ResponseWriter.WriteHeader(401)
 			ctx.ResponseWriter.Write([]byte("无权访问!"))

@@ -23,10 +23,12 @@ type ReturnMsg struct {
 	Msg  string
 }
 
+//返回字符串日期
 func GetDate() string {
 	return time.Now().Format("2006-01-02 03:04:05")[0:10]
 }
 
+//倒转字符串
 func reverseString(s string) string {
 	runes := []rune(s)
 	for from, to := 0, len(runes)-1; from < to; from, to = from+1, to-1 {
@@ -35,7 +37,7 @@ func reverseString(s string) string {
 	return string(runes)
 }
 
-//加密
+//检测表是否有数据
 func CheckTabDataExists(pTab string, pWhere string) int {
 	o := orm.NewOrm()
 	var res []orm.Params

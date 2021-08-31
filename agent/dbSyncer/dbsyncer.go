@@ -60,8 +60,11 @@ func syncDDL(cfg map[string]interface{}) {
 			//utils.ExecSQL("targetDB",fmt.Sprintf(`delete from  %s`,tabName))
 
 			//获取表所有数据
-			utils.ExecSQL("sourceDB", fmt.Sprintf(`select %s from %s`, "", tabName))
-
+			fmt.Println("Exec SQL:", fmt.Sprintf(`select %s from %s`, cols, tabName))
+			rs := utils.ExecSQL("sourceDB", fmt.Sprintf(`select %s from %s`, cols, tabName))
+			for _, r := range rs {
+				fmt.Println(r)
+			}
 		}
 
 	}

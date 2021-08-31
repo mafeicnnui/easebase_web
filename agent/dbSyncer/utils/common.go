@@ -21,6 +21,13 @@ type result struct {
 	Data []map[string]interface{} `json:"Data"`
 }
 
+type resultApi struct {
+	Name string `json:"Name"`
+	Code int    `json:"Code"`
+	Msg  string `json:"Msg"`
+	Data string `json:"Data"`
+}
+
 //测试函数
 func Test() {
 	//测试
@@ -125,20 +132,29 @@ func getSeconds(t1 time.Time, t2 time.Time) int {
    出口:解密串
 */
 func GetPassword(apiServer string, dbUser string, dbPass string) string {
-	var res result
-	url := fmt.Sprintf(`http://%s/api/public/decode`, apiServer)
-	tag := map[string]interface{}{
+	var res resultApi
+	url := fmt.Sprintf(`http://%s/api/public/decrypt`, apiServer)
+	tag := map[string]string{
 		"key":      dbUser,
 		"password": dbPass,
 	}
-	data, _ := json.Marshal(tag)
+	data, err := json.Marshal(tag)
+	if err != nil {
+		panic(err)
+	}
 	req, _ := http.NewRequest("POST", url, bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 	resp, _ := client.Do(req)
-	body, _ := ioutil.ReadAll(resp.Body)
-	_ = json.Unmarshal(body, &res)
-	return res.Data[0]["password"].(string)
+	body, err2 := ioutil.ReadAll(resp.Body)
+	if err2 != nil {
+		panic(err2)
+	}
+	err3 := json.Unmarshal(body, &res)
+	if err3 != nil {
+		panic(err3)
+	}
+	return res.Data
 }
 
 /*

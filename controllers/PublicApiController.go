@@ -3,8 +3,7 @@ package controllers
 import (
 	"easebase_web/utils"
 	"encoding/json"
-	//"github.com/beego/beego/v2/client/orm"
-	//"net/url"
+	"fmt"
 )
 
 type PublicApiController struct {
@@ -17,9 +16,11 @@ func (c *PublicApiController) Post() {
 	if flag == "decrypt" {
 		par := map[string]string{}
 		err := json.Unmarshal(c.Ctx.Input.RequestBody, &par)
+		fmt.Println("par=", par)
 		res, err := utils.Decrypt(par["password"], par["key"])
+		fmt.Println("PublicApiController=res", res)
 		if err == nil {
-			c.SuccessJson("PublicApiController->Post->Decrypt", &res)
+			c.SuccessJson("PublicApiController->Post->Decrypt2222", &res)
 		} else {
 			c.ErrorJson("PublicApiController->Post->Decrypt", 500, err.Error(), nil)
 		}
