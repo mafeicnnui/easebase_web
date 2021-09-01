@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"strconv"
 	"strings"
 )
 
@@ -16,6 +17,8 @@ func preProcess(cfg map[string]interface{}) map[string]interface{} {
 
 func syncDDL(cfg map[string]interface{}) {
 	tabList := strings.Split(cfg["sync_table"].(string), ",")
+	batchSize, _ := strconv.Atoi(cfg["batch_size"].(string))
+	startTime := utils.GetTime()
 	for _, tab := range tabList {
 		//获取表名，列名，同步时长
 		tabName := strings.Split(tab, ":")[0]
@@ -38,40 +41,69 @@ func syncDDL(cfg map[string]interface{}) {
 		} else {
 			//获取表定义
 			st := utils.GetTabDef(tabName)
-
 			//目标库建表
 			utils.CreateTable("targetDB", tabName, st)
-
 		}
 
 		//全量同步表
 		if utils.CheckTabExists("targetDB", tabName) > 0 && utils.CheckTabDataExists("targetDB", tabName) == 0 {
 			fmt.Println(fmt.Sprintf(`DB: %s , Table:'%s' starting full sync...`, cfg["db_dest_service"], tabName))
-
 			header := utils.GetTabHeader("sourceDB", tabName)
 			cols := utils.GetSyncCols("sourceDB", tabName)
-			fmt.Println("header=", header)
-			fmt.Println("cols=", cols)
-			//mysql :=utils.MySQLExt{Config: cfg, Alias: "test"}
-			//mysql.InitDB()
-			//mysql.Exec("select now() as rq")
+			total := utils.CheckTabDataExists("sourceDB", tabName)
 
-			//目标库
+			//目标库：删除表数据
+			//fmt.Println("Target Exec SQL:", fmt.Sprintf(`delete from  %s`,tabName))
 			//utils.ExecSQL("targetDB",fmt.Sprintf(`delete from  %s`,tabName))
 
-			//获取表所有数据
-			fmt.Println("Exec SQL:", fmt.Sprintf(`select %s from %s`, cols, tabName))
+			//源库:获取表数据
+			//fmt.Println("Source Exec SQL:", fmt.Sprintf(`select %s from %s`, cols, tabName))
 			rs := utils.ExecSQL("sourceDB", fmt.Sprintf(`select %s from %s`, cols, tabName))
+			counter := 0
+			values := ""
 			for _, r := range rs {
-				fmt.Println(r)
+				cols := strings.Split(strings.Replace(cols, "`", "", -1), ",")
+				value := ""
+				for xh := range cols {
+					if r[cols[xh]] == nil {
+						value = value + "null,"
+					} else if utils.IsDigit(r[cols[xh]].(string)) == true || utils.IsFloat(r[cols[xh]].(string)) == true {
+						value = value + fmt.Sprintf(`%s,`, r[cols[xh]].(string))
+					} else {
+						value = value + fmt.Sprintf(`'%s',`, r[cols[xh]].(string))
+					}
+				}
+				counter += 1
+				values += fmt.Sprintf(`(%s),`, value[0:len(value)-1])
+				//Pack in a batch exec
+				if counter%batchSize == 0 {
+					fmt.Printf("\r%s",
+						fmt.Sprintf(`Synce Table %s ,progress:%d/%d[%.2f%%],Time:%ds ...`,
+							tabName,
+							total,
+							counter,
+							float64(counter)/float64(total)*100,
+							utils.GetSeconds(startTime, utils.GetTime())))
+					utils.ExecSQL("targetDB", fmt.Sprintf(`%s values %s`, header, values[0:len(values)-1]))
+					values = ""
+				}
 			}
-		}
+			//exec last batch
+			fmt.Printf("\r%s",
+				fmt.Sprintf(`Synce Table %s ,progress:%d/%d[%.2f%%],Time:%ds...`,
+					tabName,
+					total,
+					counter,
+					float64(counter)/float64(total)*100,
+					utils.GetSeconds(startTime, utils.GetTime())))
+			utils.ExecSQL("targetDB", fmt.Sprintf(`%s values %s`, header, values[0:len(values)-1]))
 
+		}
 	}
+	fmt.Println("\nsync complete!")
 }
 
 func main() {
-
 	//全局配置
 	var cfg map[string]interface{}
 

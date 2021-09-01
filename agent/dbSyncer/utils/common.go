@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 //请求返回的数据格式
@@ -92,7 +93,7 @@ func getTimeStr() string {
    入口:无
    出口:当前时间字符串
 */
-func getDate() string {
+func GetDate() string {
 	year := time.Now().Format("2006")
 	month := time.Now().Format("01")
 	day := time.Now().Format("02")
@@ -104,7 +105,7 @@ func getDate() string {
    入口:无
    出口:当前时间字符串
 */
-func getTimeString(t time.Time) string {
+func GetTimeString(t time.Time) string {
 	return t.Format("2006-01-02 03:04:05")
 }
 
@@ -113,7 +114,7 @@ func getTimeString(t time.Time) string {
    入口:无
    出口:当前时间
 */
-func getTime() time.Time {
+func GetTime() time.Time {
 	return time.Now()
 }
 
@@ -122,7 +123,7 @@ func getTime() time.Time {
    入口:t1,t2时间串
    出口:秒
 */
-func getSeconds(t1 time.Time, t2 time.Time) int {
+func GetSeconds(t1 time.Time, t2 time.Time) int {
 	return int(t2.Sub(t1).Seconds())
 }
 
@@ -370,4 +371,21 @@ func GetSyncCols(pDs string, pTab string) string {
 	cols = strings.Replace(cols, "[[", "`", -1)
 	cols = strings.Replace(cols, "]]", "`", -1)
 	return cols
+}
+
+func IsDigit(str string) bool {
+	for _, x := range []rune(str) {
+		if !unicode.IsDigit(x) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsFloat(str string) bool {
+	_, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return false
+	}
+	return true
 }
