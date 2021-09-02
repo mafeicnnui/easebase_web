@@ -16,18 +16,16 @@ func preProcess(cfg map[string]interface{}) map[string]interface{} {
 }
 
 func syncDDL(cfg map[string]interface{}) {
+
 	tabList := strings.Split(cfg["sync_table"].(string), ",")
-	batchSize, _ := strconv.Atoi(cfg["batch_size"].(string))
-	startTime := utils.GetTime()
+
 	for _, tab := range tabList {
 		//获取表名，列名，同步时长
 		tabName := strings.Split(tab, ":")[0]
-		colName := strings.Split(tab, ":")[1]
-		syncTime, _ := strconv.Atoi(strings.Split(tab, ":")[2])
 
 		//检查源表是否存在
 		if utils.CheckTabExists("sourceDB", tabName) == 0 {
-			panic(fmt.Sprintf(`DB: %s , Table:'%s' not exists!`, cfg["db_sour_service"], tabName))
+			panic(fmt.Sprintf(`DB: %s ,Table:'%s' not exists!`, cfg["db_sour_service"], tabName))
 		}
 
 		//检查源表是否有主键
@@ -44,6 +42,18 @@ func syncDDL(cfg map[string]interface{}) {
 			//目标库建表
 			utils.CreateTable("targetDB", tabName, st)
 		}
+	}
+}
+
+func fullSync(cfg map[string]interface{}) {
+	tabList := strings.Split(cfg["sync_table"].(string), ",")
+	batchSize, _ := strconv.Atoi(cfg["batch_size"].(string))
+	startTime := utils.GetTime()
+	for _, tab := range tabList {
+		//获取表名，列名，同步时长
+		tabName := strings.Split(tab, ":")[0]
+		colName := strings.Split(tab, ":")[1]
+		syncTime, _ := strconv.Atoi(strings.Split(tab, ":")[2])
 
 		//全量同步表
 		if utils.CheckTabExists("targetDB", tabName) > 0 && utils.CheckTabDataExists("targetDB", tabName) == 0 {
@@ -61,9 +71,7 @@ func syncDDL(cfg map[string]interface{}) {
 				vWhere := fmt.Sprintf(`where %s between %s and %s `, colName, beginDate, endDate)
 
 				//源库:获取表数据
-				//fmt.Println("Source Exec SQL:", fmt.Sprintf(`select %s from %s %s`, cols, tabName,vWhere))
 				rs := utils.ExecSQL("sourceDB", fmt.Sprintf(`select %s from %s %s`, cols, tabName, vWhere))
-				//fmt.Println("rs.len=",len(rs))
 				values := ""
 				for _, r := range rs {
 					cols := strings.Split(strings.Replace(cols, "`", "", -1), ",")
@@ -88,7 +96,6 @@ func syncDDL(cfg map[string]interface{}) {
 								counter,
 								float64(counter)/float64(total)*100,
 								utils.GetSeconds(startTime, utils.GetTime())))
-						//fmt.Println("values length=",len(values),values)
 						utils.ExecSQL("targetDB", fmt.Sprintf(`%s values %s`, header, values[0:len(values)-1]))
 						values = ""
 					}
@@ -102,7 +109,6 @@ func syncDDL(cfg map[string]interface{}) {
 							counter,
 							float64(counter)/float64(total)*100,
 							utils.GetSeconds(startTime, utils.GetTime())))
-					//fmt.Println("last values length=",len(values),values)
 					utils.ExecSQL("targetDB", fmt.Sprintf(`%s values %s`, header, values[0:len(values)-1]))
 				}
 			}
@@ -142,5 +148,8 @@ func main() {
 
 	//同步DDL
 	syncDDL(cfg)
+
+	//全量同步
+	fullSync(cfg)
 
 }

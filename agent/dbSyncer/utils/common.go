@@ -337,6 +337,7 @@ func ExecSQL(pDs string, sql string) []orm.Params {
 	return rs
 }
 
+//返回同步表头
 func GetTabHeader(pDs string, pTab string) string {
 	o := orm.NewOrmUsingDB(pDs)
 	var rs []orm.Params
@@ -356,6 +357,7 @@ func GetTabHeader(pDs string, pTab string) string {
 	return cols
 }
 
+//返回表的所有列名以符串
 func GetSyncCols(pDs string, pTab string) string {
 	o := orm.NewOrmUsingDB(pDs)
 	var rs []orm.Params
@@ -373,12 +375,11 @@ func GetSyncCols(pDs string, pTab string) string {
 	return cols
 }
 
+//返回同步表中同步列的最小日期，以及最大日期与最小日期相差的天数
 func GetTabMinRqDays(pDs string, pTab string, pCol string) (string, int) {
 	o := orm.NewOrmUsingDB(pDs)
 	var rs []orm.Params
-	st := fmt.Sprintf(`select min(modifytime) AS min_rq,
-                                     timestampdiff(day,min(%s),max(%s)) AS days 
-                             from %s`, pCol, pCol, pTab)
+	st := fmt.Sprintf(`select min(modifytime) AS min_rq,timestampdiff(day,min(%s),max(%s)) AS days from %s`, pCol, pCol, pTab)
 	_, err := o.Raw(st).Values(&rs)
 	if err != nil {
 		panic(err.Error())
@@ -388,6 +389,7 @@ func GetTabMinRqDays(pDs string, pTab string, pCol string) (string, int) {
 	return rq, days
 }
 
+//检浊字符串是否为数字串
 func IsDigit(str string) bool {
 	for _, x := range []rune(str) {
 		if !unicode.IsDigit(x) {
@@ -397,6 +399,7 @@ func IsDigit(str string) bool {
 	return true
 }
 
+//检测字符串是否为浮点数
 func IsFloat(str string) bool {
 	_, err := strconv.ParseFloat(str, 64)
 	if err != nil {
