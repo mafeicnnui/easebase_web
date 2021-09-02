@@ -22,8 +22,8 @@ func syncDDL(cfg map[string]interface{}) {
 	for _, tab := range tabList {
 		//获取表名，列名，同步时长
 		tabName := strings.Split(tab, ":")[0]
-		//colName := strings.Split(tab,":")[1]
-		//syncTime:= strings.Split(tab,":")[2]
+		colName := strings.Split(tab, ":")[1]
+		syncTime, _ := strconv.Atoi(strings.Split(tab, ":")[2])
 
 		//检查源表是否存在
 		if utils.CheckTabExists("sourceDB", tabName) == 0 {
@@ -47,60 +47,70 @@ func syncDDL(cfg map[string]interface{}) {
 
 		//全量同步表
 		if utils.CheckTabExists("targetDB", tabName) > 0 && utils.CheckTabDataExists("targetDB", tabName) == 0 {
-			fmt.Println(fmt.Sprintf(`DB: %s , Table:'%s' starting full sync...`, cfg["db_dest_service"], tabName))
+			fmt.Println(fmt.Sprintf(`DB: %s ,Table:'%s' starting full sync...`, cfg["db_dest_service"], tabName))
 			header := utils.GetTabHeader("sourceDB", tabName)
 			cols := utils.GetSyncCols("sourceDB", tabName)
 			total := utils.CheckTabDataExists("sourceDB", tabName)
-
-			//目标库：删除表数据
-			//fmt.Println("Target Exec SQL:", fmt.Sprintf(`delete from  %s`,tabName))
-			//utils.ExecSQL("targetDB",fmt.Sprintf(`delete from  %s`,tabName))
-
-			//源库:获取表数据
-			//fmt.Println("Source Exec SQL:", fmt.Sprintf(`select %s from %s`, cols, tabName))
-			rs := utils.ExecSQL("sourceDB", fmt.Sprintf(`select %s from %s`, cols, tabName))
 			counter := 0
-			values := ""
-			for _, r := range rs {
-				cols := strings.Split(strings.Replace(cols, "`", "", -1), ",")
-				value := ""
-				for xh := range cols {
-					if r[cols[xh]] == nil {
-						value = value + "null,"
-					} else if utils.IsDigit(r[cols[xh]].(string)) == true || utils.IsFloat(r[cols[xh]].(string)) == true {
-						value = value + fmt.Sprintf(`%s,`, r[cols[xh]].(string))
-					} else {
-						value = value + fmt.Sprintf(`'%s',`, r[cols[xh]].(string))
+
+			//构造表同步条件
+			minRq, days := utils.GetTabMinRqDays("sourceDB", tabName, colName)
+			for i := 0; i <= days; i += syncTime {
+				beginDate := fmt.Sprintf(`DATE_ADD('%s',INTERVAL %d DAY)`, minRq, i)
+				endDate := fmt.Sprintf(`DATE_ADD('%s',INTERVAL %d DAY)`, minRq, i+syncTime)
+				vWhere := fmt.Sprintf(`where %s between %s and %s `, colName, beginDate, endDate)
+
+				//源库:获取表数据
+				//fmt.Println("Source Exec SQL:", fmt.Sprintf(`select %s from %s %s`, cols, tabName,vWhere))
+				rs := utils.ExecSQL("sourceDB", fmt.Sprintf(`select %s from %s %s`, cols, tabName, vWhere))
+				//fmt.Println("rs.len=",len(rs))
+				values := ""
+				for _, r := range rs {
+					cols := strings.Split(strings.Replace(cols, "`", "", -1), ",")
+					value := ""
+					for xh := range cols {
+						if r[cols[xh]] == nil {
+							value = value + "null,"
+						} else if utils.IsDigit(r[cols[xh]].(string)) == true || utils.IsFloat(r[cols[xh]].(string)) == true {
+							value = value + fmt.Sprintf(`%s,`, r[cols[xh]].(string))
+						} else {
+							value = value + fmt.Sprintf(`'%s',`, r[cols[xh]].(string))
+						}
+					}
+					counter += 1
+					values += fmt.Sprintf(`(%s),`, value[0:len(value)-1])
+					//目标库：打包执行
+					if counter%batchSize == 0 {
+						fmt.Printf("\r%s",
+							fmt.Sprintf(`Synce Table %s ,progress:%d/%d[%.2f%%],Time:%ds...`,
+								tabName,
+								total,
+								counter,
+								float64(counter)/float64(total)*100,
+								utils.GetSeconds(startTime, utils.GetTime())))
+						//fmt.Println("values length=",len(values),values)
+						utils.ExecSQL("targetDB", fmt.Sprintf(`%s values %s`, header, values[0:len(values)-1]))
+						values = ""
 					}
 				}
-				counter += 1
-				values += fmt.Sprintf(`(%s),`, value[0:len(value)-1])
-				//Pack in a batch exec
-				if counter%batchSize == 0 {
+				//目标库：执行最后一批
+				if len(values) > 0 {
 					fmt.Printf("\r%s",
-						fmt.Sprintf(`Synce Table %s ,progress:%d/%d[%.2f%%],Time:%ds ...`,
+						fmt.Sprintf(`Synce Table %s ,progress:%d/%d[%.2f%%],Time:%ds...`,
 							tabName,
 							total,
 							counter,
 							float64(counter)/float64(total)*100,
 							utils.GetSeconds(startTime, utils.GetTime())))
+					//fmt.Println("last values length=",len(values),values)
 					utils.ExecSQL("targetDB", fmt.Sprintf(`%s values %s`, header, values[0:len(values)-1]))
-					values = ""
 				}
 			}
-			//exec last batch
-			fmt.Printf("\r%s",
-				fmt.Sprintf(`Synce Table %s ,progress:%d/%d[%.2f%%],Time:%ds...`,
-					tabName,
-					total,
-					counter,
-					float64(counter)/float64(total)*100,
-					utils.GetSeconds(startTime, utils.GetTime())))
-			utils.ExecSQL("targetDB", fmt.Sprintf(`%s values %s`, header, values[0:len(values)-1]))
-
+			fmt.Println("\nsync complete!")
+		} else {
+			fmt.Println(fmt.Sprintf(`Table: %s already exists data,skip full sync!`, tabName))
 		}
 	}
-	fmt.Println("\nsync complete!")
 }
 
 func main() {

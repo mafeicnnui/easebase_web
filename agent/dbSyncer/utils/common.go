@@ -373,6 +373,21 @@ func GetSyncCols(pDs string, pTab string) string {
 	return cols
 }
 
+func GetTabMinRqDays(pDs string, pTab string, pCol string) (string, int) {
+	o := orm.NewOrmUsingDB(pDs)
+	var rs []orm.Params
+	st := fmt.Sprintf(`select min(modifytime) AS min_rq,
+                                     timestampdiff(day,min(%s),max(%s)) AS days 
+                             from %s`, pCol, pCol, pTab)
+	_, err := o.Raw(st).Values(&rs)
+	if err != nil {
+		panic(err.Error())
+	}
+	rq := rs[0]["min_rq"].(string)
+	days, _ := strconv.Atoi(rs[0]["days"].(string))
+	return rq, days
+}
+
 func IsDigit(str string) bool {
 	for _, x := range []rune(str) {
 		if !unicode.IsDigit(x) {
