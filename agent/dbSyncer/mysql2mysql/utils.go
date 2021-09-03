@@ -1,4 +1,4 @@
-package utils
+package mysql2mysql
 
 import (
 	"bytes"
