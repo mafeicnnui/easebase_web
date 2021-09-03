@@ -14,7 +14,9 @@ import (
 	"unicode"
 )
 
-//请求返回的数据格式
+/*
+   功能：请求返回的数据格式
+*/
 type result struct {
 	Name string                   `json:"Name"`
 	Code int                      `json:"Code"`
@@ -22,6 +24,9 @@ type result struct {
 	Data []map[string]interface{} `json:"Data"`
 }
 
+/*
+   功能：请求返回的数据格式(适用部分API)
+*/
 type resultApi struct {
 	Name string `json:"Name"`
 	Code int    `json:"Code"`
@@ -29,16 +34,11 @@ type resultApi struct {
 	Data string `json:"Data"`
 }
 
-//测试函数
-func Test() {
-	//测试
-	fmt.Println(strings.Repeat("-", 120))
-	for _, v := range GetSourDatabases("dbo_summary_day") {
-		fmt.Println(fmt.Sprintf(`%-40s%-40s`, v["table_schema"], v["table_name"]))
-	}
-}
-
-//初始化源数据库
+/*
+   功能：初始化源数据库
+   入口：配置文件
+   出口: 无
+*/
 func InitSourDB(cfg map[string]interface{}) {
 	apiServer := cfg["api_server"].(string)
 	dbSlice := strings.Split(cfg["sync_db_sour"].(string), ":")
@@ -58,7 +58,11 @@ func InitSourDB(cfg map[string]interface{}) {
 	orm.RegisterDataBase("sourceDB", "mysql", ds)
 }
 
-//初始化目标数据库
+/*
+   功能：初始化目标数据库
+   入口：配置文件
+   出口: 无
+*/
 func InitTargetDB(cfg map[string]interface{}) {
 	apiServer := cfg["api_server"].(string)
 	dbSlice := strings.Split(cfg["sync_db_dest"].(string), ":")
@@ -277,14 +281,19 @@ func GetTabDef(pTab string) string {
 	return val
 }
 
-func GetTargetDatabases(pdb string) []orm.Params {
-	o := orm.NewOrmUsingDB("targetDB")
+/*
+   功能：获取某实例数据库列表
+   入口:数据源标识，数据库名
+   出口:当前实例下所有数据库名列表
+*/
+func GetDatabasesFromInstance(pDbs string, pName string) []orm.Params {
+	o := orm.NewOrmUsingDB(pDbs)
 	var dbs []orm.Params
 	st := fmt.Sprintf(
 		`SELECT schema_name 
 				  FROM information_schema.schemata 
 				 WHERE schema_name not IN('information_schema','performance_schema','test','sys','mysql')
-				  and instr(schema_name,'%s')>0`, pdb)
+				  and instr(schema_name,'%s')>0`, pName)
 	_, err := o.Raw(st).Values(&dbs)
 	if err != nil {
 		panic(err.Error())
@@ -292,13 +301,27 @@ func GetTargetDatabases(pdb string) []orm.Params {
 	return dbs
 }
 
-func GetSourDatabases(tabName string) []orm.Params {
-	o := orm.NewOrmUsingDB("sourceDB")
+/*
+   功能：获取某数据库下表名列表
+   入口:数据源标识，数据库名
+   出口:当前实例某个数据库下所有表名列表
+*/
+func GetTablesFromCurDb(pDbs string, pDbName string) []orm.Params {
+	o := orm.NewOrmUsingDB(pDbs)
 	var rs []orm.Params
-	st := fmt.Sprintf(
-		`SELECT table_schema,table_name  
-				  FROM information_schema.tables
-				 WHERE  table_schema=database() and table_name='%s' order by table_name`, tabName)
+	var st string
+	if pDbName == "" {
+		st = fmt.Sprintf(
+			`SELECT table_schema,table_name  
+				     FROM information_schema.tables
+				       WHERE  table_schema=database() order by table_name`)
+	} else {
+		st = fmt.Sprintf(
+			`SELECT table_schema,table_name  
+				     FROM information_schema.tables
+				      WHERE  table_schema=%s order by table_name`, pDbName)
+	}
+
 	_, err := o.Raw(st).Values(&rs)
 	if err != nil {
 		panic(err.Error())
@@ -323,9 +346,9 @@ func CreateTable(pDs string, tName string, sql string) {
 }
 
 /*
-   功能：执行SQL获取结果集
-   入口:表名,创建语句
-   出口:无
+   功能 : 执行SQL获取结果集
+   入口 : 数据源标识，数据库名
+   出口 : 返回SQL查询结果
 */
 func ExecSQL(pDs string, sql string) []orm.Params {
 	o := orm.NewOrmUsingDB(pDs)
@@ -337,7 +360,11 @@ func ExecSQL(pDs string, sql string) []orm.Params {
 	return rs
 }
 
-//返回同步表头
+/*
+   功能：返回同步表头
+   入口:表名,创建语句
+   出口:无
+*/
 func GetTabHeader(pDs string, pTab string) string {
 	o := orm.NewOrmUsingDB(pDs)
 	var rs []orm.Params
@@ -357,7 +384,11 @@ func GetTabHeader(pDs string, pTab string) string {
 	return cols
 }
 
-//返回表的所有列名以符串
+/*
+   功能 : 返回表的所有列名串
+   入口 : 数据源标识，表名
+   出口 : 返回SQL查询结果
+*/
 func GetSyncCols(pDs string, pTab string) string {
 	o := orm.NewOrmUsingDB(pDs)
 	var rs []orm.Params
@@ -375,7 +406,11 @@ func GetSyncCols(pDs string, pTab string) string {
 	return cols
 }
 
-//返回同步表中同步列的最小日期，以及最大日期与最小日期相差的天数
+/*
+   功能 : 返回同步表中同步列的最小日期，以及最大日期与最小日期相差的天数
+   入口 : 数据源标识，表名，列名
+   出口 : 最小日期，相差天数
+*/
 func GetTabMinRqDays(pDs string, pTab string, pCol string) (string, int) {
 	o := orm.NewOrmUsingDB(pDs)
 	var rs []orm.Params
@@ -390,7 +425,11 @@ func GetTabMinRqDays(pDs string, pTab string, pCol string) (string, int) {
 	return rq, days
 }
 
-//返回同增量同步表where条件
+/*
+   功能 : 返回同增量同步表where条件
+   入口 : 同步时间英文名，同步列名，同步时间
+   出口 : 增量条件
+*/
 func GetTabIncrFilter(pTCol string, pCol string, pTime string) string {
 	if pCol == "" {
 		return pCol
@@ -406,7 +445,11 @@ func GetTabIncrFilter(pTCol string, pCol string, pTime string) string {
 	}
 }
 
-//返回表主键列表达式
+/*
+   功能 : 返回表主键列表达式
+   入口 : 数据源标识，表名
+   出口 : 主键列表达式，用于增量同步
+*/
 func GetTabPkCols(pDs string, pTab string) string {
 	vCol := ""
 	o := orm.NewOrmUsingDB(pDs)
@@ -425,7 +468,11 @@ func GetTabPkCols(pDs string, pTab string) string {
 	return fmt.Sprintf(`concat(%s) as %s`, vCol[0:len(vCol)-7], "`pk`")
 }
 
-//返回表主键列表达式
+/*
+   功能 : 返回表主键列名字会串
+   入口 : 数据源标识，表名
+   出口 : 主键列字符串
+*/
 func GetTabPkNames(pDs string, pTab string) string {
 	vCol := ""
 	o := orm.NewOrmUsingDB(pDs)
@@ -444,7 +491,11 @@ func GetTabPkNames(pDs string, pTab string) string {
 	return vCol[0 : len(vCol)-1]
 }
 
-//通过主键名和主键值返回主键条件表达式
+/*
+   功能 : 通过主键名和主键值返回主键条件表达式，用于增量同步删除数据
+   入口 : 同步列字符串，同步列值字符串
+   出口 : 增量同步删除数据条件
+*/
 func GetTabPkWhere(pCols string, pValues string) string {
 	vv := ""
 	for i, _ := range strings.Split(pCols, ",") {
@@ -453,7 +504,11 @@ func GetTabPkWhere(pCols string, pValues string) string {
 	return vv[0 : len(vv)-4]
 }
 
-//检浊字符串是否为数字串
+/*
+   功能 : 检测字符串是否为数字串
+   入口 : 数字字符串
+   出口 : true:是数字库，false：不是数字串
+*/
 func IsDigit(str string) bool {
 	for _, x := range []rune(str) {
 		if !unicode.IsDigit(x) {
@@ -463,7 +518,11 @@ func IsDigit(str string) bool {
 	return true
 }
 
-//检测字符串是否为浮点数
+/*
+   功能 : 检测字符串是否为浮点数
+   入口 : 浮点数字符串
+   出口 : true:是浮点字符串，false：不是浮点数字符串
+*/
 func IsFloat(str string) bool {
 	_, err := strconv.ParseFloat(str, 64)
 	if err != nil {
