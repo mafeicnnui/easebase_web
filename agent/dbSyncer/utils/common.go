@@ -379,7 +379,8 @@ func GetSyncCols(pDs string, pTab string) string {
 func GetTabMinRqDays(pDs string, pTab string, pCol string) (string, int) {
 	o := orm.NewOrmUsingDB(pDs)
 	var rs []orm.Params
-	st := fmt.Sprintf(`select min(modifytime) AS min_rq,timestampdiff(day,min(%s),max(%s)) AS days from %s`, pCol, pCol, pTab)
+	st := fmt.Sprintf(`select min(modifytime) AS min_rq,
+                                     timestampdiff(day,min(%s),max(%s)) AS days from %s`, pCol, pCol, pTab)
 	_, err := o.Raw(st).Values(&rs)
 	if err != nil {
 		panic(err.Error())
@@ -387,6 +388,69 @@ func GetTabMinRqDays(pDs string, pTab string, pCol string) (string, int) {
 	rq := rs[0]["min_rq"].(string)
 	days, _ := strconv.Atoi(rs[0]["days"].(string))
 	return rq, days
+}
+
+//返回同增量同步表where条件
+func GetTabIncrFilter(pTCol string, pCol string, pTime string) string {
+	if pCol == "" {
+		return pCol
+	}
+	if pTCol == "day" {
+		return fmt.Sprintf(`where %s >=DATE_SUB(NOW(),INTERVAL %s DAY)`, pCol, pTime)
+	} else if pTCol == "hour" {
+		return fmt.Sprintf(`where %s >=DATE_SUB(NOW(),INTERVAL %s HOUR)`, pCol, pTime)
+	} else if pTCol == "min" {
+		return fmt.Sprintf(`where %s >=DATE_SUB(NOW(),INTERVAL %s MINUTE)`, pCol, pTime)
+	} else {
+		return ""
+	}
+}
+
+//返回表主键列表达式
+func GetTabPkCols(pDs string, pTab string) string {
+	vCol := ""
+	o := orm.NewOrmUsingDB(pDs)
+	var rs []orm.Params
+	st := fmt.Sprintf(`select column_name 
+                                from information_schema.columns
+                                  where table_schema=database()
+                                    and table_name='%s' AND column_key='PRI' order by ordinal_position`, pTab)
+	_, err := o.Raw(st).Values(&rs)
+	if err != nil {
+		panic(err.Error())
+	}
+	for i := range rs {
+		vCol += fmt.Sprintf(`cast(%s as char),'^^^',`, rs[i]["column_name"].(string))
+	}
+	return fmt.Sprintf(`concat(%s) as %s`, vCol[0:len(vCol)-7], "`pk`")
+}
+
+//返回表主键列表达式
+func GetTabPkNames(pDs string, pTab string) string {
+	vCol := ""
+	o := orm.NewOrmUsingDB(pDs)
+	var rs []orm.Params
+	st := fmt.Sprintf(`select column_name 
+                                from information_schema.columns
+                                  where table_schema=database()
+                                    and table_name='%s' AND column_key='PRI' order by ordinal_position`, pTab)
+	_, err := o.Raw(st).Values(&rs)
+	if err != nil {
+		panic(err.Error())
+	}
+	for i := range rs {
+		vCol += fmt.Sprintf(`%s,`, "`"+rs[i]["column_name"].(string)+"`")
+	}
+	return vCol[0 : len(vCol)-1]
+}
+
+//通过主键名和主键值返回主键条件表达式
+func GetTabPkWhere(pCols string, pValues string) string {
+	vv := ""
+	for i, _ := range strings.Split(pCols, ",") {
+		vv += fmt.Sprintf(`%s = '%s' and `, strings.Split(pCols, ",")[i], strings.Split(pValues, "^^^")[i])
+	}
+	return vv[0 : len(vv)-4]
 }
 
 //检浊字符串是否为数字串
