@@ -1,12 +1,14 @@
 package main
 
 import (
+	"easebase_web/agent/dbSyncer/mssql2mysql"
 	"easebase_web/agent/dbSyncer/mysql2mysql"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 //示例 ： -type=mysql2mysql -api=10.16.46.121:9000 -tag=sync_mysql_mysql_flow_218_Bi
+//示例 :  -type=mssql2mysql -tag=sync_mssql_mysql_flow_real_218_proj -api=10.16.46.121:9000 -config
 
 func main() {
 
@@ -20,6 +22,10 @@ func main() {
 	//开启同步
 	if *tye == "mysql2mysql" {
 		mysql2mysql.Sync(api, tag, show)
+	}
+
+	if *tye == "mssql2mysql" {
+		mssql2mysql.Sync(api, tag, show)
 	}
 
 }
